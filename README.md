@@ -53,29 +53,34 @@ docker build --tag evalai-submission .
 
 ## Test your Docker container locally
 
-To test that your docker container does the right thing, run the following.
+To test that your docker container does the right thing, do the following.
 
-```bash
-# SETTINGS
-# Change this one to point to where your `data` directory is stored.
-# NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths..
-LOCAL_DATA_DIR="$(pwd)/data"
-LOCAL_PREDICTIONS_DIR="$(pwd)/predictions"
+1. Download dummy version of the test dataset.
+    - TODO: XXX: link to a bucket file with a fe files that simulate the structure of test set.
+    - TODO: XXX: instructions of where to save it to locally. 
+2. Run the following commands:
 
-# RUN DOCKER CONTAINER.
-# This will:
-#    - Mount your local data dir to `/data` on the container.
-#    - Mount your local predictions dir to `/predictions` on the container.
-#      Which will allow you to see the results once docker contaier finishes
-#      running.
-#    - Run the entrypoint script you specified in your docker contianer.
-docker run --rm\
-    --name evalai-submission\
-    -v ${LOCAL_DATA_DIR}:/data\
-    -v ${LOCAL_PREDICTIONS_DIR}:/predictions\
-    evalai-submission
-```
+    ```bash
+    # SETTINGS
+    # Change this one to point to where your `data` directory is stored.
+    # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths..
+    LOCAL_DATA_DIR="$(pwd)/data"
+    LOCAL_PREDICTIONS_DIR="$(pwd)/predictions"
 
-- Running this script will create a new directory `predictions` in your current working directory.
-- If the docker container is set up correctly, there should be a `predictions.csv` file saved in that directory.
-- Open up the file to make sure it has the output structured correctly.
+    # RUN DOCKER CONTAINER.
+    # This will:
+    #    - Mount your local data dir to `/data` on the container.
+    #    - Mount your local predictions dir to `/predictions` on the container.
+    #      Which will allow you to see the results once docker contaier finishes
+    #      running.
+    #    - Run the entrypoint script you specified in your docker contianer.
+    docker run --rm\
+        --name evalai-submission\
+        -v ${LOCAL_DATA_DIR}:/data\
+        -v ${LOCAL_PREDICTIONS_DIR}:/predictions\
+        evalai-submission
+    ```
+
+   - Running this will create a new directory `predictions` in your current working directory.
+   - If the docker container is set up correctly, there should be a `predictions.csv` file saved in that directory.
+   - Open up the file to make sure it has the output structured correctly.
