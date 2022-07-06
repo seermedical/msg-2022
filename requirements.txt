@@ -1,4 +1,4 @@
-pandas
 numpy
-pyarrow
-fastparquet
+pandas
+pyarrow     # Needed to load parquet files in pandas
+fastparquet # Needed to load parquet files in pandas
