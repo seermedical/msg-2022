@@ -3,17 +3,24 @@
 
 ## Requireements of your docker submission
 
-<!-- 1. Your application must load up data from the `/data/test`  directory. -->
+1. Your application must load up data from the `/data/test`  directory.
 
-2. Must downoad data from bucket specified in the `DATA_BUCKET_FILE` environment variable.
-    - There is a `curl` command in `submission.sh` that does this already.
-    - However, you can use a different way of downlaoding from the bucket if you like (e.g. if your docker base image does not come with curl installed).
-3. Once you have created your predictions, you must save them as:
+    - The data is structured as:
+
+    ```
+    TODO: visual representation of the data.
+    ```
+
+2. Your application should generate predictions, and save it as a csv.
+
+    - Structure of csv should look like:
 
     ```bash
-    XXX: TODO: how should predictions be saved? 
-                As a csv? where?
+    TODO: structure of CSV, title and data
+
     ```
+
+    - Csv file should be saved as `TODO: filename and location?`
 
 ## Build Docker Image
 
@@ -24,17 +31,16 @@ docker build --tag evalai-submission .
 
 ## Test your Docker container locally
 
+To test that your docker 
 ```bash
-# XXX: TODO: use a dummy bucket file that actually has data of real structure.
-# DUMMY_BUCKET_DATA="https://ronny-test-evalai-data.s3.ap-southeast-2.amazonaws.com/scrap_data.csv"
-    # --env DATA_BUCKET_FILE=${DUMMY_BUCKET_DATA}\
-
+# Change this one to point to where your `data` directory is stored.
+# NOTE: `LOCAL_DATA_DIR` must be an absolute path.
+# NOTE: there must be a `test/` subdirectory within there.
 LOCAL_DATA_DIR="$(pwd)/data"
+
 docker run --rm\
     --name evalai-submission\
     -v ${LOCAL_DATA_DIR}:/data\
     evalai-submission
 
-
 ```
-
