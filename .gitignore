@@ -1,0 +1,10 @@
+# SCRAP FILES
+scrap/*
+scrap_*
+scrap.*
+
+# BUILD ARTEFACTS
+
+# DATA
+data/*
+predictions.csv
