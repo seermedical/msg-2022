@@ -6,7 +6,7 @@ import numpy as np
 
 # SETTINGS
 DATA_DIR = Path("/data/test/") # Location of input test data
-PREDICTIONS_FILEPATH = "./predictions.csv" # Output file.
+PREDICTIONS_FILEPATH = "/predictions/predictions.csv" # Output file.
 
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS FOR
@@ -26,7 +26,7 @@ for filepath in test_files:
     X = pd.read_parquet(DATA_DIR/filepath)
 
     # Feed the input to some machine learning model, and get a prediction.
-    print("Predicting on file {filepath}")
+    print(f"Predicting on file {filepath}")
     prediction = np.random.rand()
 
     # Append to your predictions (along with the file it corresponds with)
@@ -35,4 +35,4 @@ for filepath in test_files:
 # SAVE PREDICTIONS TO A CSV FILE
 print("Saving predictions.")
 predictions = pd.DataFrame(predictions, columns=["filepath", "prediction"])
-predictions.to_csv(PREDICTIONS_FILEPATH)
+predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
