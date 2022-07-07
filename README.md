@@ -34,7 +34,7 @@
     ...
     ```
 
-    -  For example:
+    - Example:
 
     ```
     filepath,prediction
