@@ -1,7 +1,10 @@
 # Docker Submission Example
 
+- [Requirements For Docker Submission](#requirements-for-docker-submission)
+- [Build Docker Image](#build-docker-image)
+- [Test Your Docker Container Locally](#test-your-docker-container-locally)
 
-## Requirements of your docker submission
+## Requirements For Docker Submission
 
 1. Your application must load up data from the `/data/test`  directory in the docker container.
 
@@ -51,9 +54,9 @@ docker build --tag evalai-submission .
 
 ```
 
-## Test your Docker container locally
+## Test Your Docker Container Locally
 
-To test that your docker container does the right thing, do the following.
+To test that your Docker container does the right thing, do the following.
 
 1. Download dummy version of the test dataset.
     - Download this zip file https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/dummy_test.zip
