@@ -6,12 +6,12 @@
 
 ## Requirements For Docker Submission
 
-1. Your application must load up data from the `/data/test`  directory in the docker container.
+1. Your application must load data from the `/dataset/test`  directory in the docker container.
 
-    - The data is structured as separate files with the following directory structure:
+    - The data is stored as separate files with the following directory structure:
 
     ```bash
-    data
+    dataset
         test 
             NNNN
                 SSS
@@ -26,7 +26,7 @@
     ```
 
 2. Your application should generate predictions, and save it as a csv.
-    - Should be saved to `/predictions/predictions.csv` in the docker container.
+    - Should be saved to `/submission/submission.csv` in the docker container.
     - Structure of csv should look like:
 
     ```
@@ -35,7 +35,6 @@
     path_to_file,probability
     path_to_file,probability
     ...
-    ```
 
     - Example:
 
@@ -71,21 +70,21 @@ To test that your Docker container does the right thing, do the following.
     # Change this one to point to where your `dummy_data` directory is stored.
     # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths.
     LOCAL_DATA_DIR="$(pwd)/dummy_test"
-    LOCAL_PREDICTIONS_DIR="$(pwd)/predictions"
+    LOCAL_PREDICTIONS_DIR="$(pwd)/submissions"
 
     # ========================
     # RUN DOCKER CONTAINER.
     # ========================
     # This will:
-    # - Mount your local data dir to `/data` on the container.
-    # - Mount your local predictions dir to `/predictions` on the container.
+    # - Mount your local data dir to `/dataset` on the container.
+    # - Mount your local predictions dir to `/submissions` on the container.
     #   Which will allow you to see the results once docker contaier finishes
     #   running.
     # - Run the entrypoint script you specified in your docker container.
     docker run --rm\
         --name evalai-submission\
-        -v ${LOCAL_DATA_DIR}:/data\
-        -v ${LOCAL_PREDICTIONS_DIR}:/predictions\
+        -v ${LOCAL_DATA_DIR}:/dataset\
+        -v ${LOCAL_PREDICTIONS_DIR}:/submissions\
         evalai-submission
     ```
 

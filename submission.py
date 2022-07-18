@@ -8,8 +8,8 @@ import numpy as np
 
 
 # SETTINGS
-DATA_DIR = Path("/data/test/") # Location of input test data
-PREDICTIONS_FILEPATH = "/predictions/predictions.csv" # Output file.
+DATA_DIR = Path("/dataset/test/") # Location of input test data
+PREDICTIONS_FILEPATH = "/submissions/submissions.csv" # Output file.
 
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON

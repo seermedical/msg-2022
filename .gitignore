@@ -4,9 +4,11 @@ scrap_*
 scrap.*
 
 # BUILD ARTEFACTS
+*.pyc
 
 # DATA
 data/*
+submissions/*
 predictions/*
 dummy_test/*
 dummy_test.zip
