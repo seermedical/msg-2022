@@ -1,4 +1,4 @@
-# Docker Submission Example
+# My Seizure Gauge Forecasting Challenge 2022 - Docker Submission Example
 
 - [Requirements For Docker Submission](#requirements-for-docker-submission)
 - [Build Docker Image](#build-docker-image)
