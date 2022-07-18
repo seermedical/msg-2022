@@ -35,6 +35,7 @@
     path_to_file,probability
     path_to_file,probability
     ...
+    ```
 
     - Example:
 
@@ -50,7 +51,6 @@
 
 ```bash
 docker build --tag evalai-submission .
-
 ```
 
 ## Test Your Docker Container Locally
