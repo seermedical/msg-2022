@@ -8,7 +8,6 @@ scrap.*
 
 # DATA
 data/*
-submissions/*
-predictions/*
+submission/*
 dummy_test/*
 dummy_test.zip

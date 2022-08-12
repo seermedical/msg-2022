@@ -6,14 +6,12 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-
 # SETTINGS
 DATA_DIR = Path("/dataset/test/") # Location of input test data
-PREDICTIONS_FILEPATH = "/submissions/submissions.csv" # Output file.
-
+PREDICTIONS_FILEPATH = "/submission/submission.csv" # Output file.
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
-print("Getting list of files to run predictions on.")
+print("Getting list of files to run predictions on. ")
 test_files = []
 for patient in os.listdir(DATA_DIR):
     for session in os.listdir(DATA_DIR/patient):
