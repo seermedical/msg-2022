@@ -9,29 +9,34 @@ import numpy as np
 # SETTINGS
 DATA_DIR = Path("/dataset/test/") # Location of input test data
 PREDICTIONS_FILEPATH = "/submission/submission.csv" # Output file.
+VERSION = "v0.1.0" # Submission version. Optional and purely for logging purposes.
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
-print("Getting list of files to run predictions on. ")
+print(f"Submission version {VERSION}")
+print("Getting list of files to run predictions on.")
 test_files = []
 for patient in os.listdir(DATA_DIR):
     for session in os.listdir(DATA_DIR/patient):
         for filename in os.listdir(DATA_DIR/patient/session):
             test_files.append(Path(patient)/session/filename)
+n_files = len(test_files)
 
 # CREATE PREDICTIONS
 print("Creating predictions.")
 np.random.seed(1)
 predictions = []
-for filepath in test_files:
+for i in range(n_files):
     # Load up the input data
+    filepath = test_files[i]
     X = pd.read_parquet(DATA_DIR/filepath)
 
     # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     # YOUR MAGIC SAUCE HERE
     # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     # Feed the input to some machine learning model, and get a prediction.
-    print(f"Predicting on file {filepath}")
+    print(f"{i+1}/{n_files} - Predicting on file {filepath}")
     prediction = np.random.rand()
+
     # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
     # Append to your predictions (along with the file it corresponds with)
@@ -41,3 +46,5 @@ for filepath in test_files:
 print("Saving predictions.")
 predictions = pd.DataFrame(predictions, columns=["filepath", "prediction"])
 predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+
+print("Done!")
