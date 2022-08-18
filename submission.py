@@ -30,14 +30,22 @@ for i in range(n_files):
     filepath = test_files[i]
     X = pd.read_parquet(DATA_DIR/filepath)
 
-    # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    # YOUR MAGIC SAUCE HERE
-    # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    # Feed the input to some machine learning model, and get a prediction.
-    print(f"{i+1}/{n_files} - Predicting on file {filepath}")
-    prediction = np.random.rand()
+    # Print progress
+    if (i) % 100 == 0:
+        print(f"{(i+1) / n_files * 100:0.2f}% ({filepath})")
 
-    # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    try:
+        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        # YOUR MAGIC SAUCE HERE
+        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+        # Feed the input to some machine learning model, and get a prediction.
+        prediction = np.random.rand()
+
+        # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    except Exception as err:
+        print(f"Failed to predict on file ({i+1}/{n_files}) {filepath}")
+        print(repr(err))
+        raise
 
     # Append to your predictions (along with the file it corresponds with)
     predictions.append([str(filepath), prediction])
