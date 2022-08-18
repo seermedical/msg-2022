@@ -9,7 +9,7 @@ import numpy as np
 # SETTINGS
 DATA_DIR = Path("/dataset/test/") # Location of input test data
 PREDICTIONS_FILEPATH = "/submission/submission.csv" # Output file.
-VERSION = "v0.1.4" # Submission version. Optional and purely for logging purposes.
+VERSION = "v0.1.0" # Submission version. Optional and purely for logging purposes.
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
 print(f"Submission version {VERSION}")
@@ -28,7 +28,7 @@ predictions = []
 for i in range(n_files):
     # Load up the input data
     filepath = test_files[i]
-    # X = pd.read_parquet(DATA_DIR/filepath) # RONNY: this it time consuming. So ignring it while in dev phase.
+    X = pd.read_parquet(DATA_DIR/filepath)
 
     # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     # YOUR MAGIC SAUCE HERE
