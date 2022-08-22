@@ -118,7 +118,7 @@ To test that your Docker container does the right thing, do the following.
 ## 4. Submit your solution
 ### 4.1. Preparation
 
-1. Sign up for the competition on Eval AI.
+1. Sign up for [the competition on Eval AI](https://eval.ai/web/challenges/challenge-page/1693/overview).
 2. Install evalai cli tool
 
     ```bash
