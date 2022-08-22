@@ -1,10 +1,13 @@
 # My Seizure Gauge Forecasting Challenge 2022 - Docker Submission Example
 
-- [Requirements For Docker Submission](#requirements-for-docker-submission)
-- [Build Docker Image](#build-docker-image)
-- [Test Your Docker Container Locally](#test-your-docker-container-locally)
+- [1. Requirements For Docker Submission](#1-requirements-for-docker-submission)
+- [2. Build Docker Image](#2-build-docker-image)
+- [3. Test Your Docker Container Locally](#3-test-your-docker-container-locally)
+- [4. Submit your solution](#4-submit-your-solution)
+  - [4.1. Preparation](#41-preparation)
+  - [4.2. Make actual submission](#42-make-actual-submission)
 
-## Requirements For Docker Submission
+## 1. Requirements For Docker Submission
 
 1. Your application must load data from the `/dataset/test`  directory in the docker container.
 
@@ -47,13 +50,13 @@
     ```
 
 
-## Build Docker Image
+## 2. Build Docker Image
 
 ```bash
 docker build --tag evalai-submission .
 ```
 
-## Test Your Docker Container Locally
+## 3. Test Your Docker Container Locally
 
 To test that your Docker container does the right thing, do the following.
 
@@ -110,3 +113,33 @@ To test that your Docker container does the right thing, do the following.
     1001/001/UTC-2020_02_28-14_00_00.parquet,0.4191945144032948
     1001/001/UTC-2020_02_28-15_00_00.parquet,0.6852195003967595
     ```
+
+
+## 4. Submit your solution
+### 4.1. Preparation
+
+1. Sign up for the competition on Eval AI.
+2. Install evalai cli tool
+
+    ```bash
+    pip install evalai
+    ```
+
+3. Add your eval AI authentication token to the cli tool. You can get the token by going to your [eval.ai profile](https://eval.ai/web/profile)
+
+    ```bash
+    evalai set_token XXXXXXXXXXXX
+    ```
+
+### 4.2. Make actual submission
+
+```bash
+# DEVELOPMENT PHASE
+# evalai push MY_DOCKER_IMAGE:MY_TAG --phase my-dev-1693
+evalai push evalai-submission --phase my-dev-1693
+
+# ACTUAL SUBMISSION PHASE DURING COMPETITION
+# evalai push MY_DOCKER_IMAGE:MY_TAG --phase my-test-1693
+evalai push evalai-submission --phase my-test-1693
+
+```
