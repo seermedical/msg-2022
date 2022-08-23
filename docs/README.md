@@ -1,5 +1,7 @@
 # My Seizure Gauge Forecasting Challenge 2022 - Docker Submission Example
 
+**Contents of this page**
+
 - [1. Requirements For Docker Submission](#1-requirements-for-docker-submission)
 - [2. Build Docker Image](#2-build-docker-image)
 - [3. Test Your Docker Container Locally](#3-test-your-docker-container-locally)
@@ -52,9 +54,13 @@
 
 ## 2. Build Docker Image
 
-```bash
-docker build --tag evalai-submission .
-```
+1. Create your code, and [be mindful of compatibility issues](compatibility.md) ahead of time.
+2. Edit the dockerfile, and [be mindful of these docker image tips](dockerfile.md).
+3. Build it
+
+    ```bash
+    docker build --tag evalai-submission .
+    ```
 
 ## 3. Test Your Docker Container Locally
 
