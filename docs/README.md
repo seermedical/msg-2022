@@ -142,10 +142,10 @@ To test that your Docker container does the right thing, do the following.
 ```bash
 # DEVELOPMENT PHASE
 # evalai push MY_DOCKER_IMAGE:MY_TAG --phase my-dev-1693
-evalai push evalai-submission --phase my-dev-1693
+evalai push evalai-submission:latest --phase my-dev-1693
 
 # ACTUAL SUBMISSION PHASE DURING COMPETITION
 # evalai push MY_DOCKER_IMAGE:MY_TAG --phase my-test-1693
-evalai push evalai-submission --phase my-test-1693
+evalai push evalai-submission:latest --phase my-test-1693
 
 ```
