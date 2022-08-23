@@ -3,16 +3,23 @@ This is the main script that will create the predictions on input data and save 
 """
 import os
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
+# import tensorflow as tf
+# import torch
 
 # SETTINGS
 DATA_DIR = Path("/dataset/test/") # Location of input test data
 PREDICTIONS_FILEPATH = "/submission/submission.csv" # Output file.
 VERSION = "v0.1.0" # Submission version. Optional and purely for logging purposes.
 
-# GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
+# DEBUGGING INFO
 print(f"Submission version {VERSION}")
+# print(f"GPU available:   {torch.cuda.is_available()}")  # Use this if using pytorch
+# print(f"GPU available:   {tf.test.is_gpu_available()}") # Use this if using tensorflow
+
+# GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
 print("Getting list of files to run predictions on.")
 test_files = []
 for patient in os.listdir(DATA_DIR):
