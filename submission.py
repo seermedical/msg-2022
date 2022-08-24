@@ -38,7 +38,7 @@ for i in range(n_files):
     X = pd.read_parquet(DATA_DIR/filepath)
 
     # Print progress
-    if (i) % 100 == 0:
+    if (i) % 500 == 0:
         print(f"{(i+1) / n_files * 100:0.2f}% ({filepath})")
 
     try:
