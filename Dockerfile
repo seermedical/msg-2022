@@ -42,8 +42,8 @@ RUN apt-get update &&\
 # RUN python -m pip install tensorflow==2.9.1
 
 # ADITIONAL PYTHON DEPENDENCIES (if you have them)
-COPY requirements.txt ./
-RUN pip install -r requirements.txt
+COPY requirements_prod.txt ./
+RUN pip install -r requirements_prod.txt
 
 
 # ##############################################################################

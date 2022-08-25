@@ -1,6 +1,8 @@
 # Editing the Dockerfile 
 
-- [home](README.md)
+- [Go back to Main](../README.md)
+- [Go back to Submission](submission.md)
+- [Go back to Creating Docker Image](create_docker.md)
 
 ## Tips
 
