@@ -722,7 +722,7 @@ class MultiRocket_LR:
         }
 
         a = 84 * 2 * 4
-        _num_features = a * (args["num_features"] // a)
+        _num_features = int(a * (args["num_features"] // a))
         del a
         num_chunks = np.int32(np.ceil(training_size / args["chunk_size"]))
         num_classes = len(np.unique(y_train))
