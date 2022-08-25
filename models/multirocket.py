@@ -770,9 +770,9 @@ class MultiRocket_LR:
 
         # -- validation data -------------------------------------------------------
         x_train, y_train = shuffle(x_train, y_train, random_state=0)
-        x_training = x_train[args["validation_size"]:]
+        x_training = x_train[args["validation_size"]:, :, :]
         y_training = y_train[args["validation_size"]:]
-        x_validation = x_train[:args["validation_size"]]
+        x_validation = x_train[:args["validation_size"], :, :]
         y_validation = y_train[:args["validation_size"]]
 
         # -- run -------------------------------------------------------------------\

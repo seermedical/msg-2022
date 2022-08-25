@@ -54,6 +54,7 @@ for i in range(n_files):
     X = X.values
     x_train.append(X)
     y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
+    break
 
 x_train = np.array(x_train)
 y_train = np.array(y_train)
