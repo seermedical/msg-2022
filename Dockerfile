@@ -39,12 +39,14 @@ RUN apt-get update &&\
 #     --extra-index-url https://download.pytorch.org/whl/cu112
 
 # INSTALL TENSORFLOW
-# RUN python -m pip install tensorflow==2.9.1
+RUN python -m pip install tensorflow==2.9.1
 
 # ADITIONAL PYTHON DEPENDENCIES (if you have them)
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
-
+RUN python -m pip install numba
+RUN python -m pip install psutil
+RUN python -m pip install sklearn
 
 # ##############################################################################
 # R
@@ -64,14 +66,23 @@ RUN pip install -r requirements.txt
 # YOUR UNIQUE SETUP CODE HERE
 # ##############################################################################
 WORKDIR /app
+RUN mkdir -p /app/models
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
-COPY submission.py ./
+#COPY submission.py ./
+COPY demo_train_multirocket.py ./
+COPY demo_submission_multirocket.py ./
+COPY models/multirocket.py ./models
+COPY run.sh ./
 
+RUN chmod a+x run.sh
 # RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM
 # RUN mycommand1 &&\
 #     mycommand2 &&\
 #     mycommand3
 
 # SPECIFY THE ENTRYPOINT SCRIPT
-CMD python submission.py
+#CMD python submission.py
+#CMD python demo_train_multirocket.py
+#CMD python demo_submission_multirocket.py
+CMD ["./run.sh"]

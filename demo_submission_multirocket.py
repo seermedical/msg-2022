@@ -10,11 +10,13 @@ import tensorflow as tf
 from models.multirocket import MultiRocket
 
 # SETTINGS
-DATA_DIR = Path("./data/dummy_test/test/")  # Location of input test data
-MODELS_DIR = "./models_out"
-PREDICTIONS_DIR = "./submission"
+DATA_DIR = Path("/dataset/dummy_test/test")  # Location of input test data
+MODELS_DIR = "/models_out"
+PREDICTIONS_DIR = "/submission"
 PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
+
+print(os.listdir(os.getcwd()))
 
 if not os.path.exists(PREDICTIONS_DIR):
     os.makedirs(PREDICTIONS_DIR)

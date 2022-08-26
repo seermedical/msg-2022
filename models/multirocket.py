@@ -658,7 +658,7 @@ class MultiRocket:
 
     def save(self):
         if self.classifier_type.lower() == "logistic":
-            self.classifier.model.save(self.save_path + "/model." + self.name)
+            self.classifier.model.save(self.save_path)
             self.classifier.model = None
 
         file = open(self.save_path + "/model." + self.name + '.pkl', 'wb')
@@ -673,7 +673,7 @@ class MultiRocket:
         self.__dict__ = pickle.loads(dataPickle)
 
         if self.classifier_type.lower() == "logistic":
-            self.classifier.model = tf.keras.models.load_model(self.save_path + "/model." + self.name)
+            self.classifier.model = tf.keras.models.load_model(self.save_path)
 
 
 class LogisticRegression:
@@ -790,9 +790,11 @@ class LogisticRegression:
         x = self.scaler.transform(x)
 
         yhat = self.model.predict(x)
-        if self.num_classes > 2:
-            yhat = self.classes[np.argmax(yhat, axis=1)]
-        else:
-            yhat = np.round(yhat)
+        # if self.num_classes > 2:
+        #     yhat = self.classes[np.argmax(yhat, axis=1)]
+        # else:
+        #     yhat = np.round(yhat)
 
+        if self.num_classes > 2:
+            yhat = np.argmax(yhat, axis=1)
         return yhat

@@ -10,11 +10,11 @@ import tensorflow as tf
 from models.multirocket import MultiRocket
 
 # SETTINGS
-DATA_DIR = Path("./data/train/")  # Location of input train data
-MODELS_DIR = "./models_out"
-PREDICTIONS_DIR = "./submission"
+DATA_DIR = Path("/dataset/train")  # Location of input train data
+MODELS_DIR = "/models_out"
+PREDICTIONS_DIR = "/submission"
 PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
-TRAIN_LABELS_FILEPATH = "./data/train_labels.csv"  # Output file.
+TRAIN_LABELS_FILEPATH = "/dataset/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
 if not os.path.exists(PREDICTIONS_DIR):
@@ -37,7 +37,7 @@ for patient in os.listdir(DATA_DIR):
 n_files = len(train_files)
 
 # TRAIN MULTIROCKET
-print("Training MultiRocket.")
+print(f"Training MultiRocket on {n_files}.")
 x_train = []
 y_train = []
 train_labels = pd.read_csv(TRAIN_LABELS_FILEPATH)
@@ -61,7 +61,7 @@ for i in range(n_files):
 
 x_train = np.array(x_train)
 y_train = np.array(y_train)
-x_train = x_train[:, :, :100:]
+x_train = x_train[:100, :, :100:]
 print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
 model = MultiRocket(
