@@ -2,18 +2,19 @@
 This is the main script that will create the predictions on input data and save a predictions file.
 """
 import os
-import pickle
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+# SETTINGS
+from models.multirocket import MultiRocket
+
 # import tensorflow as tf
 # import torch
 
-# SETTINGS
 DATA_DIR = Path("./data/dummy_test/")  # Location of input test data
-PREDICTIONS_FILEPATH = "/submission/submission.csv"  # Output file.
+PREDICTIONS_FILEPATH = "./submission/submission.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
 # DEBUGGING INFO
@@ -31,8 +32,12 @@ for patient in os.listdir(DATA_DIR):
 n_files = len(test_files)
 
 print("Loading models.")
-with open("./models/model.multirocket.pkl", "r+b") as f:
-    model = pickle.load(f)
+model = MultiRocket(
+    classifier="logistic",
+    verbose=2,
+    save_path="./models"
+)
+model.load()
 
 # CREATE PREDICTIONS
 print("Creating predictions.")
@@ -45,6 +50,7 @@ for i in range(n_files):
     X = X.transpose()
     X = X.values
     X = np.array(X)
+    X = X.reshape((1, X.shape[0], X.shape[1]))
     X = X[:, :, :100:]
     # Print progress
     if (i) % 500 == 0:
@@ -67,6 +73,8 @@ for i in range(n_files):
     predictions.append([str(filepath), prediction])
 
 # SAVE PREDICTIONS TO A CSV FILE
+if not os.path.exists("./submission"):
+    os.makedirs("./submission")
 print("Saving predictions.")
 predictions = pd.DataFrame(predictions, columns=["filepath", "prediction"])
 predictions.to_csv(PREDICTIONS_FILEPATH, index=False)

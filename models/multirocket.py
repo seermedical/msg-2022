@@ -502,8 +502,9 @@ class MultiRocket:
         else:
             numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
 
-        self.save_path = None
+        self.save_path = save_path
         self.load_model = load_model
+        self.classifier_type = classifier
 
         self.name = name
 
@@ -579,7 +580,6 @@ class MultiRocket:
         )
         generate_kernel_duration = time.perf_counter() - _start_time
 
-
         _start_time = time.perf_counter()
         x_train_transform = transform(
             x_train, xx,
@@ -622,14 +622,6 @@ class MultiRocket:
         if self.verbose > 1:
             print('[{}] Predicting'.format(self.name))
 
-        if x.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x = np.zeros((x.shape[0], x.shape[1], 10), dtype=x.dtype)
-            _x[:, :, :x.shape[2]] = x
-            x = _x
-            del _x
-
         _start_time = time.perf_counter()
         xx = np.diff(x, 1)
         test_transforms_duration = time.perf_counter() - _start_time
@@ -660,12 +652,28 @@ class MultiRocket:
             "test_duration": test_duration,
         })
 
-        return yhat, None
+        if x.shape[0] == 1:
+            return yhat[0][0]
+        return yhat
 
     def save(self):
-        file = open(self.save_path + "/models." + self.name + '.pkl', 'wb')
+        if self.classifier_type.lower() == "logistic":
+            self.classifier.model.save(self.save_path + "/model." + self.name)
+            self.classifier.model = None
+
+        file = open(self.save_path + "/model." + self.name + '.pkl', 'wb')
         file.write(pickle.dumps(self.__dict__))
         file.close()
+
+    def load(self):
+        file = open(self.save_path + "/model." + self.name + '.pkl', 'rb')
+        dataPickle = file.read()
+        file.close()
+
+        self.__dict__ = pickle.loads(dataPickle)
+
+        if self.classifier_type.lower() == "logistic":
+            self.classifier.model = tf.keras.models.load_model(self.save_path + "/model." + self.name)
 
 
 class LogisticRegression:

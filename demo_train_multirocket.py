@@ -2,7 +2,6 @@
 This is the main script that will create the predictions on input data and save a predictions file.
 """
 import os
-import pickle
 from pathlib import Path
 
 import numpy as np
@@ -63,45 +62,13 @@ print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
 model = MultiRocket(
     classifier="logistic",
-    verbose=2
+    verbose=2,
+    save_path="./models"
 )
 model.fit(x_train, y_train)
 
 # SAVE MODELS TO A CSV FILE
 print("Saving models.")
-with open("./models/model.multirocket.pkl", "w+b") as f:
-    pickle.dump(model, f)
-
-# model = pickle.load("./models/model.multirocket.pkl")
-# np.random.seed(1)
-# predictions = []
-# for i in range(n_files):
-#     # Load up the input data
-#     filepath = train_files[i]
-#     X = pd.read_parquet(DATA_DIR/filepath)
-#
-#     # Print progress
-#     if (i) % 500 == 0:
-#         print(f"{(i+1) / n_files * 100:0.2f}% ({filepath})")
-#
-#     try:
-#         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#         # YOUR MAGIC SAUCE HERE
-#         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#         # Feed the input to some machine learning model, and get a prediction.
-#         prediction = np.random.rand()
-#
-#         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-#     except Exception as err:
-#         print(f"Failed to predict on file ({i+1}/{n_files}) {filepath}")
-#         print(repr(err))
-#         raise
-#
-#     # Append to your predictions (along with the file it corresponds with)
-#     predictions.append([str(filepath), prediction])
-#
-
-# predictions = pd.DataFrame(predictions, columns=["filepath", "prediction"])
-# predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+model.save()
 
 print("Done!")
