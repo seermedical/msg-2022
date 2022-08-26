@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 # SETTINGS
-from models.multirocket import MultiRocket_LR
+from models.multirocket import MultiRocket
 
 # import tensorflow as tf
 # import torch
@@ -60,7 +60,7 @@ x_train = np.array(x_train)
 y_train = np.array(y_train)
 print(x_train.shape, y_train.shape)
 
-model = MultiRocket_LR(verbose=2)
+model = MultiRocket(verbose=2)
 model.fit(x_train, y_train)
 
 #

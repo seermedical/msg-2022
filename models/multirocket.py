@@ -11,7 +11,10 @@ import psutil
 import tensorflow as tf
 from numba import njit, prange
 from sklearn.linear_model import RidgeClassifierCV
-from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from tensorflow.keras.regularizers import l1_l2
 
 name = "MultiRocket"
 
@@ -487,6 +490,7 @@ class MultiRocket:
     def __init__(
             self,
             num_features=50000,
+            classifier="ridge",
             num_threads=-1,
             verbose=0
     ):
@@ -508,10 +512,19 @@ class MultiRocket:
         if verbose > 1:
             print('[{}] Creating {} with {} kernels'.format(self.name, self.name, self.num_kernels))
 
-        self.classifier = RidgeClassifierCV(
-            alphas=np.logspace(-3, 3, 10),
-            normalize=True
-        )
+        if classifier.lower() == "ridge":
+            self.classifier = make_pipeline(
+                StandardScaler(),
+                RidgeClassifierCV(
+                    alphas=np.logspace(-3, 3, 10),
+                    normalize=False
+                )
+            )
+        else:
+            self.classifier = LogisticRegression(
+                num_features=num_features,
+                max_epochs=200,
+            )
 
         self.stats = {
             "model_name": name,
@@ -644,319 +657,123 @@ class MultiRocket:
         return yhat, None
 
 
-class MultiRocket_LR:
+class LogisticRegression:
     def __init__(
             self,
-            num_features=50000,
-            num_threads=-1,
-            verbose=0
+            num_features,
+            max_epochs=500,
+            minibatch_size=256,
+            validation_size=2 ** 11,
+            learning_rate=1e-4,
+            patience_lr=5,  # 50 minibatches
+            patience=10,  # 100 minibatches
     ):
-        if num_threads < 0:
-            num_threads = psutil.cpu_count(logical=True)
-            numba.set_num_threads(num_threads)
-        else:
-            numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
+        self.name = "LogisticRegression"
 
-        self.name = name
-
-        self.base_parameters = None
-        self.diff1_parameters = None
-
-        self.n_features_per_kernel = 4
-        self.num_features = num_features / 2  # 1 per transformation
-        self.num_kernels = int(self.num_features / self.n_features_per_kernel)
-
-        if verbose > 1:
-            print('[{}] Creating {} with {} kernels'.format(self.name, self.name, self.num_kernels))
-
-        self.classifier = RidgeClassifierCV(
-            alphas=np.logspace(-3, 3, 10),
-            normalize=True
-        )
-
-        self.args = None
-
-        self.stats = {
-            "model_name": name,
-            "train_acc": -1,
-            "train_duration": 0,
-            "test_duration": 0,
-            "generate_kernel_duration": 0,
-            "train_transforms_duration": 0,
-            "test_transforms_duration": 0,
-            "apply_kernel_on_train_duration": 0,
-            "apply_kernel_on_test_duration": 0,
+        self.args = {
+            "num_features": num_features,
+            "validation_size": validation_size,
+            "minibatch_size": minibatch_size,
+            "lr": learning_rate,
+            "max_epochs": max_epochs,
+            "patience_lr": patience_lr,
+            "patience": patience,
         }
+        self.model = None
+        self.num_classes = None
+        self.classes = None
 
-        self.verbose = verbose
-
-    def fit(
-            self,
-            x_train, y_train,
-            predict_on_train=True,
-            **kwargs
-    ):
-        if self.verbose > 1:
-            print('[{}] Training with training set of {}'.format(self.name, x_train.shape))
-
-        if x_train.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x_train = np.zeros((x_train.shape[0], x_train.shape[1], 10), dtype=x_train.dtype)
-            _x_train[:, :, :x_train.shape[2]] = x_train
-            x_train = _x_train
-            del _x_train
-
+    def fit(self, x_train, y_train):
         training_size = x_train.shape[0]
 
-        args = {
-            "num_features": self.num_features,
-            "validation_size": 2 ** 11,
-            "chunk_size": 2 ** 12,
-            "minibatch_size": 256,
-            "lr": 1e-4,
-            "max_epochs": 50,
-            "patience_lr": 5,  # 50 minibatches
-            "patience": 10,  # 100 minibatches
-            "cache_size": training_size  # set to 0 to prevent caching
-        }
+        args = self.args
 
-        a = 84 * 2 * 4
-        _num_features = int(a * (args["num_features"] // a))
-        del a
-        num_chunks = np.int32(np.ceil(training_size / args["chunk_size"]))
-        num_classes = len(np.unique(y_train))
+        self.scaler = StandardScaler()
+        x_train = self.scaler.fit_transform(x_train)
 
-        start_time = time.perf_counter()
+        self.classes = np.unique(y_train)
+        self.num_classes = len(self.classes)
 
-        # -- cache -----------------------------------------------------------------
-
-        # cache as much as possible to avoid unecessarily repeating the transform
-        # consider caching to disk if appropriate, along the lines of numpy.memmap
+        self.enc = OneHotEncoder()
+        if self.num_classes > 2:
+            y_train = self.enc.fit_transform(y_train.reshape(-1, 1)).toarray()
 
         # -- model -----------------------------------------------------------------
-        input_layer = tf.keras.layers.Input((_num_features,))
+        out_dims = self.num_classes if self.num_classes > 2 else 1
+        out_activation = "softmax" if self.num_classes > 2 else "sigmoid"
+        input_layer = tf.keras.layers.Input((x_train.shape[1],))
         output_layer = tf.keras.layers.Dense(
-            num_classes,
-            activation="softmax",
+            out_dims,
+            activation=out_activation,
             bias_initializer="zeros",
             kernel_initializer="zeros",
+            kernel_regularizer=l1_l2(1e-3, 1e-3)
         )(input_layer)
         model = tf.keras.models.Model(
             inputs=input_layer,
             outputs=output_layer,
             name=self.name
         )
-        model.compile(
-            loss="categorical_crossentropy",
-            optimizer=tf.keras.optimizers.Adam(learning_rate=args["lr"]),
-            metrics=[
-                "accuracy",
-                tf.keras.metrics.AUC(name="auc"),
-                tf.keras.metrics.Precision(name="precision"),
-                tf.keras.metrics.Recall(name="recall"),
-            ]
-        )
+        model.summary()
         # Instantiate an optimizer
         optimizer = tf.keras.optimizers.Adam(learning_rate=args["lr"])
         # Instantiate a loss function
-        loss_fn = tf.keras.losses.CategoricalCrossentropy(from_logits=True)
+        loss_fn = tf.keras.losses.CategoricalCrossentropy() if self.num_classes > 2 else tf.keras.losses.BinaryCrossentropy()
 
-        scheduler = tf.keras.callbacks.ReduceLROnPlateau(
-            monitor="val_loss",
-            factor=0.5, min_lr=1e-8,
-            patience=args["patience_lr"]
+        metrics = ["accuracy"]
+
+        model.compile(
+            optimizer=optimizer,
+            loss=loss_fn,
+            metrics=metrics
         )
 
         # -- validation data -------------------------------------------------------
-        x_train, y_train = shuffle(x_train, y_train, random_state=0)
-        x_training = x_train[args["validation_size"]:, :, :]
-        y_training = y_train[args["validation_size"]:]
-        x_validation = x_train[:args["validation_size"], :, :]
-        y_validation = y_train[:args["validation_size"]]
+        # args["validation_size"] = np.minimum(args["validation_size"], int(0.3 * training_size))
+        if args["validation_size"] < training_size:
+            x_training, x_validation, y_training, y_validation = train_test_split(
+                x_train, y_train,
+                test_size=args["validation_size"],
+                stratify=y_train
+            )
 
-        # -- run -------------------------------------------------------------------\
-        stop = False
+            callbacks = [
+                tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor="val_loss",
+                    factor=0.5, min_lr=1e-8,
+                    patience=args["patience_lr"]
+                ),
+            ]
 
-        train_transforms_duration = 0
-        val_transforms_duration = 0
-        generate_kernel_duration = 0
-        apply_kernel_on_train_duration = 0
-        apply_kernel_on_validation_duration = 0
+            train_history = model.fit(
+                x_training, y_training,
+                validation_data=(x_validation, y_validation),
+                epochs=args["max_epochs"],
+                callbacks=callbacks,
+            )
+        else:
+            callbacks = [
+                tf.keras.callbacks.ReduceLROnPlateau(
+                    monitor="loss",
+                    factor=0.5, min_lr=1e-8,
+                    patience=args["patience_lr"]
+                ),
+            ]
 
-        _start_time = time.perf_counter()
-        xx_train = np.diff(x_training, 1)
-        train_transforms_duration += time.perf_counter() - _start_time
-
-        _start_time = time.perf_counter()
-        xx_val = np.diff(x_validation, 1)
-        val_transforms_duration += time.perf_counter() - _start_time
-
-        _start_time = time.perf_counter()
-        base_parameters = fit(
-            x_training,
-            num_features=self.num_kernels
-        )
-        diff1_parameters = fit(
-            xx_train,
-            num_features=self.num_kernels
-        )
-        generate_kernel_duration += time.perf_counter() - _start_time
-
-        # Prepare the training dataset.
-        train_dataset = tf.data.Dataset.from_tensor_slices((x_training, xx_train, y_training))
-        train_dataset = train_dataset.shuffle(buffer_size=num_chunks).batch(args["minibatch_size"])
-
-        # Prepare the validation dataset.
-        val_dataset = tf.data.Dataset.from_tensor_slices((x_validation, xx_val, y_validation))
-        val_dataset = val_dataset.batch(args["minibatch_size"])
-
-        # Prepare the metrics.
-        train_acc_metric = tf.keras.metrics.CategoricalAccuracy()
-        val_acc_metric = tf.keras.metrics.CategoricalAccuracy()
-
-        print("Training...")
-        train_cache = {}
-        val_cache = {}
-        for epoch in range(args["max_epochs"]):
-            print("\nStart of epoch %d" % (epoch,))
-
-            # Iterate over the batches of the dataset.
-            for step, (x_batch_train, xx_batch_train, y_batch_train) in enumerate(train_dataset):
-
-                if step not in train_cache.keys():
-                    _start_time = time.perf_counter()
-                    x_train_transform = transform(
-                        x_batch_train, xx_batch_train,
-                        base_parameters, diff1_parameters,
-                        self.n_features_per_kernel
-                    )
-                    apply_kernel_on_train_duration += time.perf_counter() - _start_time
-                    train_cache.update({step: x_train_transform})
-                else:
-                    x_train_transform = train_cache[step]
-
-                # Open a GradientTape to record the operations run
-                # during the forward pass, which enables auto-differentiation.
-                with tf.GradientTape() as tape:
-
-                    # Run the forward pass of the layer.
-                    # The operations that the layer applies
-                    # to its inputs are going to be recorded
-                    # on the GradientTape.
-                    logits = model(x_train_transform, training=True)  # Logits for this minibatch
-
-                    # Compute the loss value for this minibatch.
-                    loss_value = loss_fn(y_batch_train, logits)
-
-                # Use the gradient tape to automatically retrieve
-                # the gradients of the trainable variables with respect to the loss.
-                grads = tape.gradient(loss_value, model.trainable_weights)
-
-                # Run one step of gradient descent by updating
-                # the value of the variables to minimize the loss.
-                optimizer.apply_gradients(zip(grads, model.trainable_weights))
-
-                # Update training metric.
-                train_acc_metric.update_state(y_batch_train, logits)
-
-                # Log every 200 batches.
-                if step % 200 == 0:
-                    print(
-                        "Training loss (for one batch) at step %d: %.4f"
-                        % (step, float(loss_value))
-                    )
-                    print("Seen so far: %s samples" % ((step + 1) * args["minibatch_size"]))
-
-            # Display metrics at the end of each epoch.
-            train_acc = train_acc_metric.result()
-            print("Training acc over epoch: %.4f" % (float(train_acc),))
-
-            # Reset training metrics at the end of each epoch
-            train_acc_metric.reset_states()
-
-            # Run a validation loop at the end of each epoch.
-            for step, (x_batch_val, xx_batch_val, y_batch_val) in enumerate(val_dataset):
-                if step not in val_cache.keys():
-                    _start_time = time.perf_counter()
-                    x_val_transform = transform(
-                        x_batch_val, xx_batch_val,
-                        base_parameters, diff1_parameters,
-                        self.n_features_per_kernel
-                    )
-                    apply_kernel_on_train_duration += time.perf_counter() - _start_time
-                    val_cache.update({step: x_val_transform})
-                else:
-                    x_val_transform = val_cache[step]
-
-                val_logits = model(x_val_transform, training=False)
-                # Update val metrics
-                val_acc_metric.update_state(y_batch_val, val_logits)
-
-            val_acc = val_acc_metric.result()
-            val_acc_metric.reset_states()
-            print("Validation acc: %.4f" % (float(val_acc),))
-            print("Time taken: %.2fs" % (time.time() - start_time))
-
-        train_duration = time.perf_counter() - start_time
-
-        if self.verbose > 1:
-            print('[{}] Training done!, took {:.3f}s'.format(self.name, train_duration))
-
-        # if predict_on_train:
-        #     yhat = self.classifier.predict(x_train_transform)
-        # else:
-        #     yhat = None
-
-        self.stats.update({
-            "generate_kernel_duration": generate_kernel_duration,
-            "train_transforms_duration": train_transforms_duration,
-            "apply_kernel_on_train_duration": apply_kernel_on_train_duration,
-            "train_duration": train_duration,
-        })
-
-        # return yhat
+            train_history = model.fit(
+                x_train, y_train,
+                epochs=args["max_epochs"],
+                callbacks=callbacks,
+            )
+        self.model = model
 
     def predict(self, x):
-        if self.verbose > 1:
-            print('[{}] Predicting'.format(self.name))
+        x = self.scaler.transform(x)
 
-        if x.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x = np.zeros((x.shape[0], x.shape[1], 10), dtype=x.dtype)
-            _x[:, :, :x.shape[2]] = x
-            x = _x
-            del _x
+        yhat = self.model.predict(x)
+        if self.num_classes > 2:
+            yhat = self.classes[np.argmax(yhat, axis=1)]
+        else:
+            yhat = np.round(yhat)
 
-        _start_time = time.perf_counter()
-        xx = np.diff(x, 1)
-        test_transforms_duration = time.perf_counter() - _start_time
-
-        _start_time = time.perf_counter()
-        x_transform = transform(
-            x, xx,
-            self.base_parameters, self.diff1_parameters,
-            self.n_features_per_kernel
-        )
-        apply_kernel_on_test_duration = time.perf_counter() - _start_time
-
-        x_transform = np.nan_to_num(x_transform)
-        if self.verbose > 1:
-            print('Kernels applied!, took {:.3f}s. Transformed shape: {}.'.format(
-                apply_kernel_on_test_duration,
-                x_transform.shape))
-
-        start_time = time.perf_counter()
-        yhat = self.classifier.predict(x_transform)
-        test_duration = time.perf_counter() - start_time
-        if self.verbose > 1:
-            print("[{}] Predicting completed, took {:.3f}s".format(self.name, test_duration))
-
-        self.stats.update({
-            "test_transforms_duration": test_transforms_duration,
-            "apply_kernel_on_test_duration": apply_kernel_on_test_duration,
-            "test_duration": test_duration,
-        })
-
-        return yhat, None
+        return yhat
