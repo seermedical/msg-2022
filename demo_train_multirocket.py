@@ -6,24 +6,28 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-
-# SETTINGS
+import tensorflow as tf
 from models.multirocket import MultiRocket
 
-# import tensorflow as tf
-# import torch
-
+# SETTINGS
 DATA_DIR = Path("./data/train/")  # Location of input train data
-PREDICTIONS_FILEPATH = "./submission/submission.csv"  # Output file.
+MODELS_DIR = "./models_out"
+PREDICTIONS_DIR = "./submission"
+PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
 TRAIN_LABELS_FILEPATH = "./data/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
+
+if not os.path.exists(PREDICTIONS_DIR):
+    os.makedirs(PREDICTIONS_DIR)
+if not os.path.exists(MODELS_DIR):
+    os.makedirs(MODELS_DIR)
 
 # DEBUGGING INFO
 print(f"Submission version {VERSION}")
 # print(f"GPU available:   {torch.cuda.is_available()}")  # Use this if using pytorch
-# print(f"GPU available:   {tf.test.is_gpu_available()}") # Use this if using tensorflow
+print(f"GPU available:   {tf.test.is_gpu_available()}")  # Use this if using tensorflow
 
-# GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
+# GET LIST OF ALL THE PARQUET FILES TO TRAIN ON
 print("Getting list of files to run predictions on.")
 train_files = []
 for patient in os.listdir(DATA_DIR):
@@ -32,7 +36,7 @@ for patient in os.listdir(DATA_DIR):
             train_files.append(Path(patient) / session / filename)
 n_files = len(train_files)
 
-# TRAIN MultiRocket
+# TRAIN MULTIROCKET
 print("Training MultiRocket.")
 x_train = []
 y_train = []
@@ -63,12 +67,12 @@ print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 model = MultiRocket(
     classifier="logistic",
     verbose=2,
-    save_path="./models"
+    save_path=MODELS_DIR
 )
 model.fit(x_train, y_train)
 
-# SAVE MODELS TO A CSV FILE
-print("Saving models.")
+# SAVE MODEL
+print("Saving model.")
 model.save()
 
 print("Done!")
