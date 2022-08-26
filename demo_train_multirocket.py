@@ -2,6 +2,7 @@
 This is the main script that will create the predictions on input data and save a predictions file.
 """
 import os
+import pickle
 from pathlib import Path
 
 import numpy as np
@@ -54,16 +55,24 @@ for i in range(n_files):
     X = X.values
     x_train.append(X)
     y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
-    break
 
 x_train = np.array(x_train)
 y_train = np.array(y_train)
-print(x_train.shape, y_train.shape)
+x_train = x_train[:, :, :100:]
+print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
-model = MultiRocket(verbose=2)
+model = MultiRocket(
+    classifier="logistic",
+    verbose=2
+)
 model.fit(x_train, y_train)
 
-#
+# SAVE MODELS TO A CSV FILE
+print("Saving models.")
+with open("./models/model.multirocket.pkl", "w+b") as f:
+    pickle.dump(model, f)
+
+# model = pickle.load("./models/model.multirocket.pkl")
 # np.random.seed(1)
 # predictions = []
 # for i in range(n_files):
@@ -91,9 +100,8 @@ model.fit(x_train, y_train)
 #     # Append to your predictions (along with the file it corresponds with)
 #     predictions.append([str(filepath), prediction])
 #
-# # SAVE PREDICTIONS TO A CSV FILE
-# print("Saving predictions.")
+
 # predictions = pd.DataFrame(predictions, columns=["filepath", "prediction"])
 # predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
-#
-# print("Done!")
+
+print("Done!")

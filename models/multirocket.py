@@ -2,7 +2,7 @@
 #
 # MultiRocket: Multiple pooling operators and transformations for fast and effective time series classification
 # https://arxiv.org/abs/2102.00457
-
+import pickle
 import time
 
 import numba
@@ -492,13 +492,18 @@ class MultiRocket:
             num_features=50000,
             classifier="ridge",
             num_threads=-1,
-            verbose=0
+            verbose=0,
+            save_path=None,
+            load_model=False,
     ):
         if num_threads < 0:
             num_threads = psutil.cpu_count(logical=True)
             numba.set_num_threads(num_threads)
         else:
             numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
+
+        self.save_path = None
+        self.load_model = load_model
 
         self.name = name
 
@@ -573,6 +578,7 @@ class MultiRocket:
             num_features=self.num_kernels
         )
         generate_kernel_duration = time.perf_counter() - _start_time
+
 
         _start_time = time.perf_counter()
         x_train_transform = transform(
@@ -655,6 +661,11 @@ class MultiRocket:
         })
 
         return yhat, None
+
+    def save(self):
+        file = open(self.save_path + "/models." + self.name + '.pkl', 'wb')
+        file.write(pickle.dumps(self.__dict__))
+        file.close()
 
 
 class LogisticRegression:
