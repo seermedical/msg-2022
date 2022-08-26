@@ -13,7 +13,7 @@ from models.multirocket import MultiRocket
 # import tensorflow as tf
 # import torch
 
-DATA_DIR = Path("./data/dummy_test/")  # Location of input test data
+DATA_DIR = Path("./data/dummy_test/test/")  # Location of input test data
 PREDICTIONS_FILEPATH = "./submission/submission.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
@@ -47,6 +47,7 @@ for i in range(n_files):
     # Load up the input data
     filepath = test_files[i]
     X = pd.read_parquet(DATA_DIR / filepath)
+    X = X.fillna(0)
     X = X.transpose()
     X = X.values
     X = np.array(X)
