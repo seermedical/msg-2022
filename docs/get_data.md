@@ -32,29 +32,29 @@ The training data can be downloaded using the following links. You can download 
 cd /path/to/data_dir/
 
 # Use "wget -c" instead of "curl -OC -" if you have wget installed instead of curl.
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip
-unzip 1110_train.zip -d train
-rm 1110_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip &&\
+    unzip 1110_train.zip -d train &&\
+    rm 1110_train.zip
 
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip
-unzip 1869_train.zip -d train
-rm 1869_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip &&\
+    unzip 1869_train.zip -d train &&\
+    rm 1869_train.zip
 
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip
-unzip 1876_train.zip -d train
-rm 1876_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip &&\
+    unzip 1876_train.zip -d train &&\
+    rm 1876_train.zip
 
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip
-unzip 1904_train.zip -d train
-rm 1904_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip &&\
+    unzip 1904_train.zip -d train &&\
+    rm 1904_train.zip
 
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip
-unzip 1965_train.zip -d train
-rm 1965_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip &&\
+    unzip 1965_train.zip -d train &&\
+    rm 1965_train.zip
 
-curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip
-unzip 2002_train.zip -d train
-rm 2002_train.zip
+curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip &&\
+    unzip 2002_train.zip -d train &&\
+    rm 2002_train.zip
 
 # DOWNLOAD TRAIN LABELS
 curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels.csv

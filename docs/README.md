@@ -1,9 +1,8 @@
 # My Seizure Gauge Forecasting Challenge 2022
 
 - Sign up for competition (TODO)
-- [Get training data](prepare_data.md)
+- [Get training data](get_data.md)
 - Training (TODO)
-
 
 - [Steps for Submitting](submission/submission.md)
   1. [Input data for docker container](submission/inputs.md)
