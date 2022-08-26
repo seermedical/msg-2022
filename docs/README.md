@@ -1,7 +1,7 @@
 # My Seizure Gauge Forecasting Challenge 2022
 
 - Sign up for competition (TODO)
-- [Prepare for data](prepare_data.md)
+- [Get training data](prepare_data.md)
 - Training (TODO)
 
 
