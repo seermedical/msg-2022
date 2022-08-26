@@ -31,14 +31,14 @@ RUN apt-get update &&\
 #     curl -sS https://bootstrap.pypa.io/get-pip.py | python &&\
 #     rm -rf /var/lib/apt/lists/*
 
-# INSTALL PYTORCH (with cuda driver known to work)
+# INSTALL PYTORCH (with specific version known to work with cuda driver 11.2)
 # RUN python -m pip install --no-cache-dir \
 #     torch==1.12.1 \
 #     torchaudio==0.12.1 \
 #     torchvision==0.13.1 \
 #     --extra-index-url https://download.pytorch.org/whl/cu112
 
-# INSTALL TENSORFLOW
+# INSTALL TENSORFLOW (with specific version known to work with cuda driver 11.2)
 # RUN python -m pip install tensorflow==2.9.1
 
 # ADITIONAL PYTHON DEPENDENCIES (if you have them)
