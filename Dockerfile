@@ -66,16 +66,13 @@ RUN python -m pip install sklearn
 # YOUR UNIQUE SETUP CODE HERE
 # ##############################################################################
 WORKDIR /app
-RUN mkdir -p /app/models
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
 #COPY submission.py ./
-COPY demo_train_multirocket.py ./
 COPY demo_submission_multirocket.py ./
-COPY models/multirocket.py ./models
-COPY run.sh ./
+COPY models ./models
+COPY models_out ./models_out
 
-RUN chmod a+x run.sh
 # RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM
 # RUN mycommand1 &&\
 #     mycommand2 &&\
@@ -83,6 +80,4 @@ RUN chmod a+x run.sh
 
 # SPECIFY THE ENTRYPOINT SCRIPT
 #CMD python submission.py
-#CMD python demo_train_multirocket.py
-#CMD python demo_submission_multirocket.py
-CMD ["./run.sh"]
+CMD python demo_submission_multirocket.py

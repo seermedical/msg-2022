@@ -60,7 +60,7 @@ for i in range(n_files):
     X = np.array(X)
     X = X.reshape((1, X.shape[0], X.shape[1]))
     # for local test
-    X = X[:, :, :100:]
+    # X = X[:, :, :100:]
     # Print progress
     if (i) % 500 == 0:
         print(f"{(i + 1) / n_files * 100:0.2f}% ({filepath})")

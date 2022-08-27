@@ -10,11 +10,11 @@ import tensorflow as tf
 from models.multirocket import MultiRocket
 
 # SETTINGS
-DATA_DIR = Path("/dataset/train")  # Location of input train dataset
-MODELS_DIR = "/models_out"
-PREDICTIONS_DIR = "/submission"
+DATA_DIR = Path("./dataset/train")  # Location of input train dataset
+MODELS_DIR = "./models_out"
+PREDICTIONS_DIR = "./submission"
 PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
-TRAIN_LABELS_FILEPATH = "/dataset/train_labels.csv"  # Output file.
+TRAIN_LABELS_FILEPATH = "./dataset/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
 if not os.path.exists(PREDICTIONS_DIR):
@@ -66,7 +66,7 @@ for i in range(n_files):
 x_train = np.array(x_train)
 y_train = np.array(y_train)
 # for local test
-x_train = x_train[:, :, :100:]
+# x_train = x_train[:, :, :100:]
 print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
 model = MultiRocket(
