@@ -1,5 +1,5 @@
 """
-This is the main script that will create the predictions on input data and save a predictions file.
+This is the main script that will create the predictions on input dataset and save a predictions file.
 """
 import os
 from pathlib import Path
@@ -10,7 +10,7 @@ import tensorflow as tf
 from models.multirocket import MultiRocket
 
 # SETTINGS
-DATA_DIR = Path("/dataset/dummy_test/test")  # Location of input test data
+DATA_DIR = Path("/dataset/dummy_test/test")  # Location of input test dataset
 MODELS_DIR = "/models_out"
 PREDICTIONS_DIR = "/submission"
 PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
@@ -51,7 +51,7 @@ print("Creating predictions.")
 np.random.seed(1)
 predictions = []
 for i in range(n_files):
-    # Load up the input data
+    # Load up the input dataset
     filepath = test_files[i]
     X = pd.read_parquet(DATA_DIR / filepath)
     X = X.fillna(0)
@@ -59,6 +59,7 @@ for i in range(n_files):
     X = X.values
     X = np.array(X)
     X = X.reshape((1, X.shape[0], X.shape[1]))
+    # for local test
     X = X[:, :, :100:]
     # Print progress
     if (i) % 500 == 0:

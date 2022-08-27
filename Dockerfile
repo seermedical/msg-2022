@@ -58,7 +58,7 @@ RUN python -m pip install sklearn
 
 # # INSTALL THE R PACKAGES YOU NEED
 # RUN R -e "install.packages('caret',dependencies=TRUE, repos='http://cran.rstudio.com/')" &&\
-#     R -e "install.packages('data.table',dependencies=TRUE, repos='http://cran.rstudio.com/')" &&\
+#     R -e "install.packages('dataset.table',dependencies=TRUE, repos='http://cran.rstudio.com/')" &&\
 #     R -e "install.packages('xgboost',dependencies=TRUE, repos='http://cran.rstudio.com/')"
 
 

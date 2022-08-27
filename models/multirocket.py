@@ -747,7 +747,7 @@ class LogisticRegression:
             metrics=metrics
         )
 
-        # -- validation data -------------------------------------------------------
+        # -- validation dataset -------------------------------------------------------
         # args["validation_size"] = np.minimum(args["validation_size"], int(0.3 * training_size))
         if args["validation_size"] < training_size:
             x_training, x_validation, y_training, y_validation = train_test_split(

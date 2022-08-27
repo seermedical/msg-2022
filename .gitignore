@@ -7,7 +7,7 @@ scrap.*
 *.pyc
 
 # DATA
-data/*
+dataset/*
 submission/*
 dummy_test/*
 dummy_test.zip

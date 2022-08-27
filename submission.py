@@ -1,5 +1,5 @@
 """
-This is the main script that will create the predictions on input data and save a predictions file.
+This is the main script that will create the predictions on input dataset and save a predictions file.
 """
 import os
 from pathlib import Path
@@ -10,7 +10,7 @@ import pandas as pd
 # import torch
 
 # SETTINGS
-DATA_DIR = Path("/dataset/test/") # Location of input test data
+DATA_DIR = Path("/dataset/test/") # Location of input test dataset
 PREDICTIONS_FILEPATH = "/submission/submission.csv" # Output file.
 VERSION = "v0.1.0" # Submission version. Optional and purely for logging purposes.
 
@@ -33,7 +33,7 @@ print("Creating predictions.")
 np.random.seed(1)
 predictions = []
 for i in range(n_files):
-    # Load up the input data
+    # Load up the input dataset
     filepath = test_files[i]
     X = pd.read_parquet(DATA_DIR/filepath)
 

@@ -78,14 +78,15 @@ To test that your Docker container does the right thing, do the following.
     # ========================
     # Change this one to point to where your `dummy_data` directory is stored.
     # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths.
-    LOCAL_DATA_DIR="$(pwd)/dummy_test"
+    LOCAL_DATA_DIR="$(pwd)/dataset"
     LOCAL_PREDICTIONS_DIR="$(pwd)/submission"
+    MODELS_DIR="${pwd}/models_out""
 
     # ========================
     # RUN DOCKER CONTAINER.
     # ========================
     # This will:
-    # - Mount your local data dir to `/dataset` on the container.
+    # - Mount your local dataset dir to `/dataset` on the container.
     # - Mount your local predictions dir to `/submission` on the container.
     #   Which will allow you to see the results once docker contaier finishes
     #   running.
@@ -94,11 +95,12 @@ To test that your Docker container does the right thing, do the following.
         --name evalai-submission\
         -v ${LOCAL_DATA_DIR}:/dataset\
         -v ${LOCAL_PREDICTIONS_DIR}:/submission\
+        -v ${MODELS_DIR}:/models_out\
         evalai-submission
     ```
 
-   - Running this will create a new directory `predictions` in your current working directory.
-   - If the docker container is set up correctly, there should be a `predictions.csv` file saved in that directory.
+   - Running this will create a new directory `submission` in your current working directory.
+   - If the docker container is set up correctly, there should be a `submission.csv` file saved in that directory.
 
 3. Check the outputs of your script.
    - Open up the `submission/submission.csv` file and ensure it is structured correctly.
