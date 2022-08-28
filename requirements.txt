@@ -1,4 +1,4 @@
-# Use this to set the dependencies in a python virtualenv on your local computer.
+# Use this to set the dependencies of a python virtualenv on your local computer.
 # It is strongly recommended that you use the library versions suggested below 
 # in order maximize compatibility with the cloud instance it will run on.
 
