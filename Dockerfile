@@ -66,6 +66,7 @@ RUN pip install -r requirements_prod.txt
 WORKDIR /app
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
+# COPY file1 file2 file3 destination_dir
 COPY submission.py ./
 
 # RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM

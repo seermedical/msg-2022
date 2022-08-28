@@ -1,8 +1,14 @@
 # My Seizure Gauge Forecasting Challenge 2022
 
 - Sign up for competition (TODO)
-- [Get training data](get_data.md)
-- Training (TODO)
+- Data
+  - [Get training data](get_data.md)
+  - [Expected Directory Structure](directory_structure.md)
+- Training
+  - Set up local environment (TODO)
+  - Load data
+  - Training (TODO)
+  - Evaluating (TODO)
 
 - [Steps for Submitting](submission/submission.md)
   1. [Input data for docker container](submission/inputs.md)

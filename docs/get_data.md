@@ -62,34 +62,7 @@ curl -OC - https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels
 
 ## Expected Directory structure
 
-After downloading and extracting all the files, the file structure should follow the pattern shown below.
+After downloading and extracting all the files, the file structure should follow the pattern as shown in the [directory structure page](directory_structure.md).
 
-```
-data_dir
-    train
-        1110
-            000
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                ...
-            001
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                ...
-            ...
-        1869
-            000
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                ...
-            001
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                UTC-YYYY_MM_DD-hh_mm_ss.parquet
-                ...
-            ...
-        ...
 
-    train_labels.csv
-
-```
 

@@ -9,7 +9,7 @@ Your application must load data from the `/dataset/test`  directory in the docke
 The data is stored as separate files with the following directory structure:
 
 ```bash
-dataset
+/dataset
     test 
         NNNN
             SSS
