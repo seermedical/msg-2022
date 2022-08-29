@@ -11,3 +11,6 @@ data/*
 submission/*
 dummy_test/*
 dummy_test.zip
+
+# IDEA
+.idea
