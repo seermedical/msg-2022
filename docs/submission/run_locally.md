@@ -71,6 +71,8 @@ docker run --rm\
     evalai-submission
 ```
 
+- To test GPU, you will need to install container-toolkit: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html. You will also need to use `--gpus all` flag with docker.  
+
 - Running this will create a new directory `submission` in your current working directory.
 
 ## 3. Check the outputs
