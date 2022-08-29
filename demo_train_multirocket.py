@@ -1,5 +1,5 @@
 """
-This is the main script that will create the predictions on input dataset and save a predictions file.
+This is the main script that will train the models on input dataset and save the models.
 """
 import os
 from pathlib import Path
@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
 from models.multirocket import MultiRocket
 
 # SETTINGS
@@ -28,7 +29,7 @@ print(f"Submission version {VERSION}")
 print(f"GPU available:   {tf.test.is_gpu_available()}")  # Use this if using tensorflow
 
 # GET LIST OF ALL THE PARQUET FILES TO TRAIN ON
-print("Getting list of files to run predictions on.")
+print("Getting list of files to train on.")
 train_files = []
 for patient in os.listdir(DATA_DIR):
     for session in os.listdir(DATA_DIR / patient):

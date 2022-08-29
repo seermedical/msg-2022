@@ -1,7 +1,12 @@
 # Chang Wei Tan, Angus Dempster, Christoph Bergmeir, Geoffrey I Webb
 #
 # MultiRocket: Multiple pooling operators and transformations for fast and effective time series classification
-# https://arxiv.org/abs/2102.00457
+#
+# Tan, Chang Wei, et al. "MultiRocket: Multiple pooling operators and transformations for fast and effective
+# time series classification." Data Mining and Knowledge Discovery (2022): 1-24.
+# https://doi.org/10.1007/s10618-022-00844-1
+
+
 import pickle
 import time
 
