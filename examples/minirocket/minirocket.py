@@ -77,19 +77,15 @@ def train_classifier(
 
     metrics = [
         AUC(
-            num_thresholds=10000,
-            name="auc",
-        ),
-        AUC(
             curve="PR",
             num_thresholds=10000,
             name="auprc",
         ),
-        RecallAtPrecision(
-            num_thresholds=10000,
-            precision=0.8,
-            name="sens",
-        ),
+        # RecallAtPrecision(
+        #     num_thresholds=10000,
+        #     precision=0.8,
+        #     name="sens",
+        # ),
         PrecisionAtRecall(0.8, name="prec", num_thresholds=10000),
         SpecificityAtSensitivity(0.8, name="specs", num_thresholds=10000),
     ]
