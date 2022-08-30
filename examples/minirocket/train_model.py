@@ -1,7 +1,10 @@
 import os
+import pickle
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import tensorflow as tf
+from sklearn.model_selection import train_test_split
 from minirocket import train_rocket, train_classifier
 import scipy.signal
 
@@ -9,6 +12,8 @@ BATCH_SIZE = 32
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
+
+TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
 
 
 def load_parquet(x):
@@ -64,7 +69,7 @@ def create_dataset(
     dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
 
     data_options = tf.data.Options()
-    data_options.threading.max_intra_op_parallelism = 1
+    # data_options.threading.max_intra_op_parallelism = 1
     data_options.experimental_distribute.auto_shard_policy = (
         tf.data.experimental.AutoShardPolicy.DATA
     )
@@ -74,7 +79,13 @@ def create_dataset(
 
 
 def train_model(
-    X_train, y_train, X_validation, y_validation, kernel_num=5000, max_dilations=32, epochs=100
+    X_train,
+    y_train,
+    X_validation,
+    y_validation,
+    kernel_num=5000,
+    max_dilations=32,
+    epochs=100,
 ):
     pos_samples = X_train[y_train == 1]
     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
@@ -120,13 +131,62 @@ def train_model(
     ).map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
 
     lr_model = train_classifier(
-        "lr",
         class_num=2,
         dims=transformed_data.shape[-1],
         train_data=train_dataset,
         train_steps=int(X_train.shape[0] / BATCH_SIZE),
         validation_data=validation_dataset,
         save_path="trained_model",
-        epochs=epochs
+        epochs=epochs,
     )
     return lr_model, minirocket
+
+
+if __name__ == "__main__":
+    print(
+        f"GPU available:   {tf.test.is_gpu_available()}"
+    )  # Use this if using tensorflow
+    train_labels = pd.read_csv(os.path.join(TRAIN_DATA_DIR, "train_labels.csv"))
+    train_labels["filepath"] = train_labels["filepath"].map(
+        lambda x: os.path.join(TRAIN_DATA_DIR, x)
+    )
+
+    # SAMPLING DATA FOR DEMO
+    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    sampled_data = []
+    for patient, group in train_labels.groupby("patient"):
+        pos_samples = group[group["label"] == 1]
+        pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
+
+        neg_samples = group[group["label"] == 0].sample(100)
+        neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
+
+        sampled_data.extend([pos_samples, neg_samples])
+
+    sampled_data = pd.concat(sampled_data)
+
+    X_train, X_validation, y_train, y_validation = train_test_split(
+        sampled_data["filepath"],
+        sampled_data["label"],
+        test_size=0.2,
+        random_state=SEED,
+    )
+    ###
+    print("Training model")
+    lr_model, minirocket = train_model(
+        X_train,
+        y_train,
+        X_validation,
+        y_validation,
+        max_dilations=32,
+        kernel_num=5000,
+        epochs=2,
+    )
+    save_path = "/trained_model"
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+
+    lr_model.save(save_path)
+
+    with open(os.path.join(save_path, "minirocket.pkl"), "w+b") as f:
+        pickle.dump(minirocket, f)
