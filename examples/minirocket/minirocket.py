@@ -1,5 +1,6 @@
 # coding=utf-8
 import pickle
+from typing import Union
 import numpy as np
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 import tensorflow as tf
@@ -15,7 +16,6 @@ from tensorflow.keras.regularizers import l1_l2
 from tensorflow_addons.optimizers import SGDW, TriangularCyclicalLearningRate
 from tensorflow.keras.losses import SparseCategoricalCrossentropy, BinaryCrossentropy
 from tensorflow.keras.callbacks import EarlyStopping
-from typing import Literal
 
 SEED = 42
 
@@ -23,7 +23,9 @@ tf.random.set_seed(SEED)
 np.random.seed(SEED)
 
 
-def train_rocket(x, kernel_num=10000, max_dilations=32):
+def train_rocket(
+    x, kernel_num: int = 10000, max_dilations: int = 32
+) -> (np.ndarray, Union[MiniRocket, MiniRocketMultivariate]):
     if x.shape[1] == 1:
         rocket = MiniRocket(
             kernel_num, max_dilations_per_kernel=max_dilations, random_state=SEED
@@ -37,7 +39,9 @@ def train_rocket(x, kernel_num=10000, max_dilations=32):
     return X_train_transform, rocket
 
 
-def build_logistic_regression_model(dims: int, class_num=6):
+def build_logistic_regression_model(
+    dims: int, class_num: int = 2
+) -> tf.keras.models.Model:
     out_dims = class_num if class_num > 2 else 1
     inputs = Input(batch_shape=(None, dims))
     out_activation = "softmax" if out_dims > 1 else "sigmoid"
@@ -60,7 +64,7 @@ def train_classifier(
     dims: int = 10000,
     epochs: int = 300,
     save_path: str = "",
-):
+) -> tf.keras.models.Model:
     lr_scheduler = TriangularCyclicalLearningRate(
         initial_learning_rate=1e-4,
         maximal_learning_rate=1e-2,

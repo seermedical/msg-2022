@@ -1,10 +1,12 @@
 import os
 import pickle
+from typing import Iterable, Union
 from pathlib import Path
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
+from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 from minirocket import train_rocket, train_classifier
 import scipy.signal
 
@@ -16,7 +18,7 @@ tf.random.set_seed(SEED)
 TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
 
 
-def load_parquet(x):
+def load_parquet(x) -> np.ndarray:
     if type(x) is not str:
         x = x.numpy().decode("utf-8")
 
@@ -27,20 +29,20 @@ def load_parquet(x):
     return x
 
 
-def tf_load_parquet(x):
+def tf_load_parquet(x) -> tf.Tensor:
     x = tf.py_function(load_parquet, [x], tf.float64)
     return x
 
 
 def create_dataset(
-    x_data,
-    y_data,
-    batch_size=32,
-    drop_remainder=False,
-    oversampling=False,
-    shuffle=False,
-    repeat=False,
-):
+    x_data: Iterable[str],
+    y_data: Iterable[int],
+    batch_size: int = 32,
+    drop_remainder: bool = False,
+    oversampling: bool = False,
+    shuffle: bool = False,
+    repeat: bool = False,
+) -> tf.data.Dataset:
     dataset = tf.data.Dataset.from_tensor_slices((x_data, y_data))
 
     if oversampling:
@@ -86,7 +88,7 @@ def train_model(
     kernel_num=5000,
     max_dilations=32,
     epochs=100,
-):
+) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
     pos_samples = X_train[y_train == 1]
     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
 
