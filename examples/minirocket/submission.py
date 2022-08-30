@@ -3,59 +3,25 @@ This is the main script that will create the predictions on input data and save 
 """
 import os
 import time
+import pickle
 from pathlib import Path
 import pandas as pd
 import tensorflow as tf
-from sklearn.model_selection import train_test_split
-from train_model import train_model, tf_load_parquet
-import numpy as np
+from tensorflow.keras.models import load_model
+from train_model import tf_load_parquet
 
 
 start_time = time.time()
 
 # SETTINGS
-SEED = 42
-TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
+TRAINED_MODEL_DIR = Path("/trained_model/")  # Location of input test data
 TEST_DATA_DIR = Path("/dataset/test/")  # Location of input test data
 PREDICTIONS_FILEPATH = "/submission/submission.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
-
-# TRAIN MODEL
-print(f"GPU available:   {tf.test.is_gpu_available()}")  # Use this if using tensorflow
-train_labels = pd.read_csv(os.path.join(TRAIN_DATA_DIR, "train_labels.csv"))
-train_labels["filepath"] = train_labels["filepath"].map(
-    lambda x: os.path.join(TRAIN_DATA_DIR, x)
-)
-
-# # SAMPLING DATA FOR DEMO
-# train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
-# sampled_data = []
-# for patient, group in train_labels.groupby("patient"):
-#     pos_samples = group[group["label"] == 1]
-#     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
-#
-#     neg_samples = group[group["label"] == 0].sample(100)
-#     neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
-#
-#     sampled_data.extend([pos_samples, neg_samples])
-#
-# sampled_data = pd.concat(sampled_data)
-
-X_train, X_validation, y_train, y_validation = train_test_split(
-    train_labels["filepath"], train_labels["label"], test_size=0.2, random_state=SEED
-)
-###
-print("Training model")
-lr_model, minirocket = train_model(
-    X_train,
-    y_train,
-    X_validation,
-    y_validation,
-    max_dilations=32,
-    kernel_num=5000,
-    epochs=2,
-)
+lr_model = load_model(TRAINED_MODEL_DIR)
+with open(TRAINED_MODEL_DIR/"minirocket.pkl", "rb") as f:
+    minirocket = pickle.load(f)
 
 # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
 print("Getting list of files to run predictions on.")

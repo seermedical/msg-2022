@@ -67,14 +67,8 @@ WORKDIR /app
 
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
-COPY submission.py ./
 COPY train_model.py ./
 COPY minirocket.py ./
 
-# RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM
-# RUN mycommand1 &&\
-#     mycommand2 &&\
-#     mycommand3
-
 # SPECIFY THE ENTRYPOINT SCRIPT
-CMD ["python", "-u", "submission.py"]
+CMD ["python", "-u", "train_model.py"]
