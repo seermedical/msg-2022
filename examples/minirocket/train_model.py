@@ -1,5 +1,6 @@
 import os
 import pickle
+import glob
 from typing import Iterable, Union
 from pathlib import Path
 import pandas as pd
@@ -10,12 +11,13 @@ from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivaria
 from minirocket import train_rocket, train_classifier
 import scipy.signal
 
-BATCH_SIZE = 32
+BATCH_SIZE = 128
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
 TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
+# TRAIN_DATA_DIR = Path("/home/dnhu0002/workspace/data/msg/train")  # Location of input test data
 
 
 def load_parquet(x) -> np.ndarray:
@@ -25,7 +27,7 @@ def load_parquet(x) -> np.ndarray:
     x = pd.read_parquet(x).iloc[:76800]
     x = x.fillna(0)
     x = np.transpose(x.values.tolist())
-    x = scipy.signal.resample(x, num=100, axis=-1)
+    x = scipy.signal.resample(x, num=128, axis=-1)
     return x
 
 
@@ -41,7 +43,10 @@ def create_dataset(
     drop_remainder: bool = False,
     oversampling: bool = False,
     shuffle: bool = False,
+    shuffle_size: int = 1000,
     repeat: bool = False,
+    cache: Union[bool, str] = False,
+    transform_func=None,
 ) -> tf.data.Dataset:
     dataset = tf.data.Dataset.from_tensor_slices((x_data, y_data))
 
@@ -52,8 +57,22 @@ def create_dataset(
                 lambda x, y: (tf_load_parquet(x), y),
                 num_parallel_calls=tf.data.AUTOTUNE,
             )
+
+            if transform_func:
+                dt = dt.map(
+                    transform_func,
+                    num_parallel_calls=tf.data.AUTOTUNE,
+                )
+
+            if cache:
+                if type(cache) is str:
+                    dt = dt.cache(f"{cache}_{i}")
+                else:
+                    dt = dt.cache()
+
             if shuffle:
-                dt = dt.shuffle(10)
+                dt = dt.shuffle(shuffle_size)
+
             if repeat:
                 dt = dt.repeat()
             dataset_choices.append(dt)
@@ -63,12 +82,27 @@ def create_dataset(
         dataset = dataset.map(
             lambda x, y: (tf_load_parquet(x), y), num_parallel_calls=tf.data.AUTOTUNE
         )
+        if transform_func:
+            dataset = dataset.map(
+                transform_func,
+                num_parallel_calls=tf.data.AUTOTUNE,
+            )
+
+        if cache:
+            if type(cache) is str:
+                dataset = dataset.cache(cache)
+            else:
+                dataset = dataset.cache()
+
         if shuffle:
-            dataset = dataset.shuffle(10)
+            dataset = dataset.shuffle(shuffle_size)
+
         if repeat:
             dataset = dataset.repeat()
 
-    dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
+    dataset = dataset.batch(batch_size, drop_remainder=drop_remainder).prefetch(
+        tf.data.AUTOTUNE
+    )
 
     data_options = tf.data.Options()
     # data_options.threading.max_intra_op_parallelism = 1
@@ -107,36 +141,66 @@ def train_model(
     del sampled_data
 
     def minirocket_transform(x):
-        return minirocket.transform(x.numpy())
+        x = x.numpy()
+        x_shape = x.shape
+        if len(x_shape) == 2:
+            x = np.reshape(x, (1, x.shape[0], x.shape[1]))
+        transformed_x = minirocket.transform(x)
+
+        if len(x_shape) == 2:
+            transformed_x = transformed_x.values.flatten()
+
+        return transformed_x
 
     def tf_minirocket_transform(x, y):
         x = tf.py_function(minirocket_transform, [x], tf.float64)
         return x, y
 
-    train_dataset = create_dataset(
-        X_train,
-        y_train,
-        batch_size=32,
-        drop_remainder=True,
-        shuffle=True,
-        repeat=True,
-        oversampling=True,
-    ).map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
+    train_cache_file = "train.cache"
+    validation_cache_file = "validation.cache"
+    for f in glob.glob(train_cache_file + "*"):
+        os.remove(f)
 
-    validation_dataset = create_dataset(
-        X_validation,
-        y_validation,
-        batch_size=32,
-        drop_remainder=False,
-        shuffle=False,
-        repeat=False,
-    ).map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
+    for f in glob.glob(validation_cache_file + "*"):
+        os.remove(f)
+
+    train_dataset = (
+        create_dataset(
+            X_train,
+            y_train,
+            batch_size=BATCH_SIZE,
+            drop_remainder=True,
+            shuffle=True,
+            shuffle_size=100,
+            repeat=True,
+            oversampling=True,
+            cache=train_cache_file,
+            transform_func=tf_minirocket_transform,
+        )
+        # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
+        # .prefetch(tf.data.AUTOTUNE)
+    )
+
+    validation_dataset = (
+        create_dataset(
+            X_validation,
+            y_validation,
+            batch_size=BATCH_SIZE,
+            drop_remainder=False,
+            shuffle=False,
+            repeat=False,
+            cache=validation_cache_file,
+            transform_func=tf_minirocket_transform,
+        )
+        # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
+        # .prefetch(tf.data.AUTOTUNE)
+    )
 
     lr_model = train_classifier(
         class_num=2,
         dims=transformed_data.shape[-1],
         train_data=train_dataset,
-        train_steps=int(X_train.shape[0] / BATCH_SIZE),
+        train_steps=2 * int(X_train.shape[0] / BATCH_SIZE),
         validation_data=validation_dataset,
         save_path="trained_model",
         epochs=epochs,
@@ -154,22 +218,22 @@ if __name__ == "__main__":
     )
 
     # SAMPLING DATA FOR DEMO
-    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
-    sampled_data = []
-    for patient, group in train_labels.groupby("patient"):
-        pos_samples = group[group["label"] == 1]
-        pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
-
-        neg_samples = group[group["label"] == 0].sample(100)
-        neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
-
-        sampled_data.extend([pos_samples, neg_samples])
-
-    sampled_data = pd.concat(sampled_data)
+    # train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    # sampled_data = []
+    # for patient, group in train_labels.groupby("patient"):
+    #     pos_samples = group[group["label"] == 1]
+    #     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
+    #
+    #     neg_samples = group[group["label"] == 0].sample(100)
+    #     neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
+    #
+    #     sampled_data.extend([pos_samples, neg_samples])
+    #
+    # sampled_data = pd.concat(sampled_data)
 
     X_train, X_validation, y_train, y_validation = train_test_split(
-        sampled_data["filepath"],
-        sampled_data["label"],
+        train_labels["filepath"],
+        train_labels["label"],
         test_size=0.2,
         random_state=SEED,
     )
@@ -182,7 +246,7 @@ if __name__ == "__main__":
         y_validation,
         max_dilations=32,
         kernel_num=5000,
-        epochs=2,
+        epochs=300,
     )
     save_path = "/trained_model"
     if not os.path.exists(save_path):
