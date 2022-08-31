@@ -14,3 +14,6 @@ dummy_test.zip
 
 # IDEA
 .idea
+
+# JUPYTER
+.ipynb_checkpoints
