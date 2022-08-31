@@ -5,8 +5,7 @@
 numpy==1.22
 pandas==1.4.0
 pyarrow==9.0.0 # Needed to load parquet files in pandas
-# fastparquet # Needed to load parquet files in pandas
-tensorflow-gpu==2.8
+tensorflow-gpu==2.9.1
 tensorflow_addons==0.16.1
 protobuf==3.19.0
 scipy==1.9.0
