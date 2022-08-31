@@ -27,7 +27,7 @@ def load_parquet(x) -> np.ndarray:
     x = pd.read_parquet(x).iloc[:76800]
     x = x.fillna(0)
     x = np.transpose(x.values.tolist())
-    x = scipy.signal.resample(x, num=768, axis=-1)
+    # x = scipy.signal.resample(x, num=7680, axis=-1)
     return x
 
 
@@ -251,6 +251,15 @@ if __name__ == "__main__":
     X_validation = pd.concat(X_validation)
     y_train = pd.concat(y_train)
     y_validation = pd.concat(y_validation)
+
+    # Count samples in each class
+    print("# samples in each class in the train set")
+    print(np.unique(y_train, return_counts=True))
+
+    # Count samples in each class
+    print("# samples in each class in the CV set")
+    print(np.unique(y_validation, return_counts=True))
+
     ###
     print("Training model")
     lr_model, minirocket = train_model(
@@ -259,7 +268,7 @@ if __name__ == "__main__":
         X_validation,
         y_validation,
         max_dilations=128,
-        kernel_num=5000,
+        kernel_num=10000,
         epochs=300,
     )
     save_path = "/trained_model"
