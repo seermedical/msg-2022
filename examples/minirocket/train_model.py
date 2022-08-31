@@ -27,7 +27,7 @@ def load_parquet(x) -> np.ndarray:
     x = pd.read_parquet(x).iloc[:76800]
     x = x.fillna(0)
     x = np.transpose(x.values.tolist())
-    x = scipy.signal.resample(x, num=128, axis=-1)
+    x = scipy.signal.resample(x, num=768, axis=-1)
     return x
 
 
@@ -115,13 +115,13 @@ def create_dataset(
 
 
 def train_model(
-    X_train,
-    y_train,
-    X_validation,
-    y_validation,
-    kernel_num=5000,
-    max_dilations=32,
-    epochs=100,
+    X_train: Iterable,
+    y_train: Iterable,
+    X_validation: Iterable,
+    y_validation: Iterable,
+    kernel_num: int = 5000,
+    max_dilations: int = 32,
+    epochs: int = 100,
 ) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
     pos_samples = X_train[y_train == 1]
     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
@@ -213,6 +213,7 @@ if __name__ == "__main__":
         f"GPU available:   {tf.test.is_gpu_available()}"
     )  # Use this if using tensorflow
     train_labels = pd.read_csv(os.path.join(TRAIN_DATA_DIR, "train_labels.csv"))
+    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(TRAIN_DATA_DIR, x)
     )
@@ -230,13 +231,26 @@ if __name__ == "__main__":
     #     sampled_data.extend([pos_samples, neg_samples])
     #
     # sampled_data = pd.concat(sampled_data)
+    X_train = []
+    X_validation = []
+    y_train = []
+    y_validation = []
+    for patient, group in train_labels.groupby("patient"):
+        _x_train, _x_validation, _y_train, _y_validation = train_test_split(
+            group["filepath"],
+            group["label"],
+            test_size=0.2,
+            random_state=SEED,
+        )
+        X_train.append(_x_train)
+        X_validation.append(_y_validation)
+        y_train.append(_y_train)
+        y_validation.append(_y_validation)
 
-    X_train, X_validation, y_train, y_validation = train_test_split(
-        train_labels["filepath"],
-        train_labels["label"],
-        test_size=0.2,
-        random_state=SEED,
-    )
+    X_train = pd.concat(X_train)
+    X_validation = pd.concat(X_validation)
+    y_train = pd.concat(y_train)
+    y_validation = pd.concat(y_validation)
     ###
     print("Training model")
     lr_model, minirocket = train_model(
@@ -244,7 +258,7 @@ if __name__ == "__main__":
         y_train,
         X_validation,
         y_validation,
-        max_dilations=32,
+        max_dilations=128,
         kernel_num=5000,
         epochs=300,
     )
