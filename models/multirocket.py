@@ -671,14 +671,15 @@ class MultiRocket:
         file.close()
 
     def load(self):
-        file = open(self.save_path + "/model." + self.name + '.pkl', 'rb')
-        dataPickle = file.read()
+        save_path = self.save_path
+        file = open(save_path + "/model." + self.name + '.pkl', 'rb')
+        data_pickle = file.read()
         file.close()
 
-        self.__dict__ = pickle.loads(dataPickle)
+        self.__dict__ = pickle.loads(data_pickle)
 
         if self.classifier_type.lower() == "logistic":
-            self.classifier.model = tf.keras.models.load_model(self.save_path)
+            self.classifier.model = tf.keras.models.load_model(save_path)
 
 
 class LogisticRegression:
