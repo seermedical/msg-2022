@@ -47,7 +47,7 @@ print("Loading models.")
 model = MultiRocket(
     classifier="logistic",
     verbose=2,
-    save_path=MODELS_DIR
+    save_path=MODELS_DIR + "/general"
 )
 model.load()
 

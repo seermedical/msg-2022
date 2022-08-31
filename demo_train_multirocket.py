@@ -73,7 +73,7 @@ print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 model = MultiRocket(
     classifier="logistic",
     verbose=2,
-    save_path=MODELS_DIR
+    save_path=MODELS_DIR + "/general"
 )
 model.fit(x_train, y_train)
 
