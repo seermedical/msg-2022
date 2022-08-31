@@ -80,7 +80,7 @@ To test that your Docker container does the right thing, do the following.
     # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths.
     LOCAL_DATA_DIR="$(pwd)/dataset"
     LOCAL_PREDICTIONS_DIR="$(pwd)/submission"
-    MODELS_DIR="${pwd}/models_out""
+    MODELS_DIR="$(pwd)/models_out"
 
     # ========================
     # RUN DOCKER CONTAINER.
