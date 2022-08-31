@@ -11,11 +11,11 @@ import tensorflow as tf
 from models.multirocket import MultiRocket
 
 # SETTINGS
-DATA_DIR = Path("./dataset/train")  # Location of input train dataset
+DATA_DIR = Path("D:/Dataset/msg_contest_data/train")  # Location of input train dataset
 MODELS_DIR = "./models_out"
 PREDICTIONS_DIR = "./submission"
 PREDICTIONS_FILEPATH = f"{PREDICTIONS_DIR}/submission.csv"  # Output file.
-TRAIN_LABELS_FILEPATH = "./dataset/train_labels.csv"  # Output file.
+TRAIN_LABELS_FILEPATH = "D:/Dataset/msg_contest_data/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
 if not os.path.exists(PREDICTIONS_DIR):
@@ -57,6 +57,8 @@ for patient in os.listdir(DATA_DIR):
         X = X.fillna(0)
         X = X.transpose()
         X = X.values
+        # # for local test
+        X = X[:, :10:]
         x_train.append(X)
         y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
 
@@ -66,8 +68,7 @@ for patient in os.listdir(DATA_DIR):
 
     x_train = np.array(x_train)
     y_train = np.array(y_train)
-    # for local test
-    # x_train = x_train[:, :, :100:]
+
     print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
     save_path = MODELS_DIR + "/" + patient

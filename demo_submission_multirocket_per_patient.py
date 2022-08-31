@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+
 from models.multirocket import MultiRocket
 
 # SETTINGS
@@ -42,15 +43,11 @@ for patient in os.listdir(DATA_DIR):
             patients.append(patient)
 n_files = len(test_files)
 
-# LOAD MODEL
-print("Loading models.")
-model = MultiRocket(
-    classifier="logistic",
-    verbose=2,
-    save_path=MODELS_DIR
-)
-model.load()
-
+dummy_test_map = {
+    "1234": "1110",
+    "3456": "2002",
+    "5678": "1869",
+}
 # CREATE PREDICTIONS
 print("Creating predictions.")
 np.random.seed(1)
@@ -70,6 +67,15 @@ for i in range(n_files):
     # Print progress
     if (i) % 500 == 0:
         print(f"{(i + 1) / n_files * 100:0.2f}% ({filepath})")
+
+    # LOAD MODEL
+    print("Loading models.")
+    model = MultiRocket(
+        classifier="logistic",
+        verbose=2,
+        save_path=MODELS_DIR + "/" + dummy_test_map[patient] + "/"  # for dummy test
+    )
+    model.load()
 
     try:
         # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
