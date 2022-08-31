@@ -5,7 +5,7 @@
 FROM ubuntu:20.04
 
 # Use this one for submissions that require GPU processing
-# FROM nvidia/cuda:11.2.0-cudnn8-runtime-ubuntu20.04
+FROM nvidia/cuda:11.2.0-cudnn8-runtime-ubuntu20.04
 
 
 # ##############################################################################
@@ -20,24 +20,6 @@ RUN apt-get update &&\
     ln -sf /usr/bin/python3.8 /usr/bin/python &&\
     rm -rf /var/lib/apt/lists/*
 
-# INSTALL DIFFERENT VERSION OF PYTHON (change 3.10 to the version you want)
-# RUN apt-get update &&\
-#    DEBIAN_FRONTEND=noninteractive apt-get install software-properties-common -y &&\
-#    add-apt-repository -y ppa:deadsnakes/ppa &&\
-#     apt-get install -y python3.10  &&\
-#     ln -sf /usr/bin/python3.10 /usr/bin/python &&\
-#     ln -sf /usr/bin/python3.10 /usr/bin/python3 &&\
-#     apt-get install -y curl &&\
-#     curl -sS https://bootstrap.pypa.io/get-pip.py | python &&\
-#     rm -rf /var/lib/apt/lists/*
-
-# INSTALL PYTORCH (with cuda driver known to work)
-# RUN python -m pip install --no-cache-dir \
-#     torch==1.12.1 \
-#     torchaudio==0.12.1 \
-#     torchvision==0.13.1 \
-#     --extra-index-url https://download.pytorch.org/whl/cu112
-
 # INSTALL TENSORFLOW
 RUN python -m pip install tensorflow==2.9.1
 
@@ -48,19 +30,6 @@ RUN python -m pip install numba
 RUN python -m pip install psutil
 RUN python -m pip install sklearn
 
-# ##############################################################################
-# R
-# ##############################################################################
-# # INSTALL R
-# RUN apt-get update &&\
-#     DEBIAN_FRONTEND=noninteractive apt-get install -y r-base &&\
-#     rm -rf /var/lib/apt/lists/*
-
-# # INSTALL THE R PACKAGES YOU NEED
-# RUN R -e "install.packages('caret',dependencies=TRUE, repos='http://cran.rstudio.com/')" &&\
-#     R -e "install.packages('dataset.table',dependencies=TRUE, repos='http://cran.rstudio.com/')" &&\
-#     R -e "install.packages('xgboost',dependencies=TRUE, repos='http://cran.rstudio.com/')"
-
 
 # ##############################################################################
 # YOUR UNIQUE SETUP CODE HERE
@@ -69,16 +38,8 @@ WORKDIR /app
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
 #COPY submission.py ./
-COPY demo_submission_multirocket.py ./
-COPY demo_submission_multirocket_per_patient.py ./
+COPY demo_submission_multirocket.py demo_submission_multirocket_per_patient.py ./
 COPY models ./models
-#COPY models_out ./models_out
-
-# RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM
-# RUN mycommand1 &&\
-#     mycommand2 &&\
-#     mycommand3
 
 # SPECIFY THE ENTRYPOINT SCRIPT
-#CMD python submission.py
 CMD python demo_submission_multirocket_per_patient.py

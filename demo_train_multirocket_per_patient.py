@@ -52,7 +52,7 @@ for patient in os.listdir(DATA_DIR):
         X = pd.read_parquet(DATA_DIR / filepath)
 
         # Print progress
-        if (i) % 500 == 0:
+        if (i) % 100 == 0:
             print(f"{(i + 1) / n_files * 100:0.2f}% ({filepath})")
 
         X = X.fillna(0)
@@ -66,8 +66,8 @@ for patient in os.listdir(DATA_DIR):
         y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
 
         # for local test
-        if i == 100:
-            break
+        # if i == 100:
+        #     break
 
     x_train = np.array(x_train)
     y_train = np.array(y_train)
