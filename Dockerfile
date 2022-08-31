@@ -70,8 +70,9 @@ WORKDIR /app
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
 #COPY submission.py ./
 COPY demo_submission_multirocket.py ./
+COPY demo_submission_multirocket_per_patient.py ./
 COPY models ./models
-COPY models_out ./models_out
+#COPY models_out ./models_out
 
 # RUN WHATEVER OTHER COMMANDS YOU MAY NEED TO SET UP THE SYSTEM
 # RUN mycommand1 &&\
@@ -80,4 +81,4 @@ COPY models_out ./models_out
 
 # SPECIFY THE ENTRYPOINT SCRIPT
 #CMD python submission.py
-CMD python demo_submission_multirocket.py
+CMD python demo_submission_multirocket_per_patient.py
