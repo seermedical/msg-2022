@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy import signal
 
 from models.multirocket import MultiRocket
 
@@ -57,6 +58,9 @@ for i in range(n_files):
     X = X.fillna(0)
     X = X.transpose()
     X = X.values
+    # resample
+    X = signal.resample_poly(X, up=64, down=128, axis=-1)
+
     x_train.append(X)
     y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
 
@@ -66,8 +70,6 @@ for i in range(n_files):
 
 x_train = np.array(x_train)
 y_train = np.array(y_train)
-# for local test
-# x_train = x_train[:, :, :100:]
 print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
 model = MultiRocket(

@@ -7,6 +7,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy import signal
+
 from models.multirocket import MultiRocket
 
 # SETTINGS
@@ -64,9 +66,10 @@ for i in range(n_files):
     X = X.transpose()
     X = X.values
     X = np.array(X)
+    # resample
+    X = signal.resample_poly(X, up=64, down=128, axis=-1)
     X = X.reshape((1, X.shape[0], X.shape[1]))
-    # for local test
-    X = X[:, :, :10:]
+
     # Print progress
     if (i) % 500 == 0:
         print(f"{(i + 1) / n_files * 100:0.2f}% ({filepath})")

@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from scipy import signal
 
 from models.multirocket import MultiRocket
 
@@ -57,14 +58,16 @@ for patient in os.listdir(DATA_DIR):
         X = X.fillna(0)
         X = X.transpose()
         X = X.values
-        # # for local test
-        X = X[:, :10:]
+
+        # resample
+        X = signal.resample_poly(X, up=64, down=128, axis=-1)
+
         x_train.append(X)
         y_train.append(train_labels.loc[train_labels.filepath == train_labels_key]["label"].values[0])
 
         # for local test
-        # if i == 100:
-        #     break
+        if i == 100:
+            break
 
     x_train = np.array(x_train)
     y_train = np.array(y_train)
