@@ -1,10 +1,3 @@
-# ##############################################################################
-# BASE IMAGE
-# ##############################################################################
-# Use this one for submissions that dont require GPU
-#FROM ubuntu:20.04
-
-# Use this one for submissions that require GPU processing
 FROM nvidia/cuda:11.2.0-cudnn8-runtime-ubuntu20.04
 
 RUN apt-get update &&\
