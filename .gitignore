@@ -17,3 +17,4 @@ dummy_test.zip
 
 # JUPYTER
 .ipynb_checkpoints
+*cache*
