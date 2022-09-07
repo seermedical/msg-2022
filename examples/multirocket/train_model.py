@@ -70,17 +70,18 @@ def create_dataset(
                     num_parallel_calls=tf.data.AUTOTUNE,
                 )
 
+            if shuffle:
+                dt = dt.shuffle(shuffle_size)
+
             if cache:
                 if type(cache) is str:
                     dt = dt.cache(f"{cache}_{i}")
                 else:
                     dt = dt.cache()
 
-            if shuffle:
-                dt = dt.shuffle(shuffle_size)
-
             if repeat:
                 dt = dt.repeat()
+
             dataset_choices.append(dt)
 
         dataset = tf.data.Dataset.sample_from_datasets(dataset_choices, [0.5, 0.5])
@@ -94,14 +95,14 @@ def create_dataset(
                 num_parallel_calls=tf.data.AUTOTUNE,
             )
 
+        if shuffle:
+            dataset = dataset.shuffle(shuffle_size)
+
         if cache:
             if type(cache) is str:
                 dataset = dataset.cache(cache)
             else:
                 dataset = dataset.cache()
-
-        if shuffle:
-            dataset = dataset.shuffle(shuffle_size)
 
         if repeat:
             dataset = dataset.repeat()
@@ -255,6 +256,8 @@ def train_general_model(data_path, save_path):
     y_train = pd.concat(y_train)
     y_validation = pd.concat(y_validation)
 
+    print(X_train.shape, X_validation.shape)
+
     # Count samples in each class
     print("# samples in each class in the train set")
     print(np.unique(y_train, return_counts=True))
@@ -298,7 +301,7 @@ def train_patient_specific(data_path, save_path):
 
         neg_samples = group[group["label"] == 0]
         neg_samples = neg_samples.sample(
-            int(neg_samples.shape[0] / 2), random_state=SEED
+            int(neg_samples.shape[0] / 10), random_state=SEED
         )
 
         sampled_data.extend([pos_samples, neg_samples])
@@ -313,6 +316,8 @@ def train_patient_specific(data_path, save_path):
             random_state=SEED,
         )
         # Count samples in each class
+        print(X_train.shape, X_validation.shape)
+
         print("# samples in each class in the train set")
         print(np.unique(y_train, return_counts=True))
 
@@ -321,6 +326,7 @@ def train_patient_specific(data_path, save_path):
         print(np.unique(y_validation, return_counts=True))
 
         batch_size = np.min([BATCH_SIZE, y_train[y_train == 1].shape[0]])
+        batch_size = BATCH_SIZE
         ###
         print("Training model")
         patient_model_save_path = os.path.join(save_path, str(patient))
@@ -368,7 +374,7 @@ if __name__ == "__main__":
     training_mode = args.training_mode
 
     print(
-        f"GPU available:   {tf.test.is_gpu_available()}"
+        f"GPU available:   {tf.config.list_physical_devices('GPU')}"
     )
 
     if training_mode == "general":

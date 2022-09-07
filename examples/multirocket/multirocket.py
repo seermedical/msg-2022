@@ -1181,7 +1181,7 @@ def train_classifier(
 ) -> tf.keras.models.Model:
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-
+    print("train_steps:", train_steps)
     lr_scheduler = TriangularCyclicalLearningRate(
         initial_learning_rate=1e-4,
         maximal_learning_rate=1e-2,
