@@ -4,7 +4,7 @@ from typing import Union
 import numpy as np
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense
+from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.models import Model
 from tensorflow.keras.metrics import (
     AUC,
@@ -45,9 +45,10 @@ def build_logistic_regression_model(
     out_dims = class_num if class_num > 2 else 1
     inputs = Input(batch_shape=(None, dims))
     out_activation = "softmax" if out_dims > 1 else "sigmoid"
+    x = BatchNormalization()(inputs)
     x = Dense(
         out_dims, activation=out_activation, kernel_regularizer=l1_l2(1e-4, 1e-4)
-    )(inputs)
+    )(x)
 
     model = Model(inputs=inputs, outputs=x)
 
@@ -63,7 +64,6 @@ def train_classifier(
     train_steps: int,
     dims: int = 10000,
     epochs: int = 300,
-    save_path: str = "",
 ) -> tf.keras.models.Model:
     lr_scheduler = TriangularCyclicalLearningRate(
         initial_learning_rate=1e-4,
@@ -104,16 +104,16 @@ def train_classifier(
         ),
     ]
 
-    train_history = model.fit(
+    model.fit(
         train_data,
         validation_data=validation_data,
         steps_per_epoch=train_steps,
         epochs=epochs,
         callbacks=callbacks,
     )
-    model.save_weights(f"{save_path}/model_weights.hf5")
-
-    with open(f"{save_path}/train_history.dat", "w+b") as f:
-        pickle.dump(train_history.history, f)
-
+    # model.save_weights(f"{save_path}/model_weights.hf5")
+    #
+    # with open(f"{save_path}/train_history.dat", "w+b") as f:
+    #     pickle.dump(train_history.history, f)
+    #
     return model
