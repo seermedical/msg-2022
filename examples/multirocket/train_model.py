@@ -224,9 +224,9 @@ def train_general_model(data_path, save_path):
         pos_samples = group[group["label"] == 1]
 
         neg_samples = group[group["label"] == 0]
-        neg_samples = neg_samples.sample(
-            int(neg_samples.shape[0] / 2), random_state=SEED
-        )
+        # neg_samples = neg_samples.sample(
+        #     int(neg_samples.shape[0] / 2), random_state=SEED
+        # )
 
         sampled_data.extend([pos_samples, neg_samples])
 
@@ -300,9 +300,9 @@ def train_patient_specific(data_path, save_path):
         pos_samples = group[group["label"] == 1]
 
         neg_samples = group[group["label"] == 0]
-        neg_samples = neg_samples.sample(
-            int(neg_samples.shape[0] / 2), random_state=SEED
-        )
+        # neg_samples = neg_samples.sample(
+        #     int(neg_samples.shape[0] / 2), random_state=SEED
+        # )
 
         sampled_data.extend([pos_samples, neg_samples])
 
