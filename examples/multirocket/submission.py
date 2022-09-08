@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import tensorflow as tf
 
-from examples.multirocket.train_model import tf_load_parquet
+from train_model import tf_load_parquet
 
 start_time = time.time()
 
