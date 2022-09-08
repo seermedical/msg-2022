@@ -10,17 +10,16 @@ import pandas as pd
 import scipy.signal
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
-from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 
-from examples.multirocket.multirocket import train_multirocket, train_classifier
+from multirocket import train_multirocket, train_classifier, MultiRocket, MultiRocketMultivariate
 
-BATCH_SIZE = 16
+BATCH_SIZE = 256 # 16
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
-# TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input train data
-TRAIN_DATA_DIR = Path("D:/Dataset/msg_contest_data/train")  # Location of input train data
+TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input train data
+# TRAIN_DATA_DIR = Path("D:/Dataset/msg_contest_data/train")  # Location of input train data
 
 
 def load_parquet(x) -> np.ndarray:
@@ -130,7 +129,7 @@ def train_model(
         epochs: int = 100,
         batch_size=BATCH_SIZE,
         save_path="",
-) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
+) -> (tf.keras.models.Model, Union[MultiRocket, MultiRocketMultivariate]):
     print("Fitting multirocket")
     pos_samples = X_train[y_train == 1]
     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
@@ -263,10 +262,14 @@ def train_general_model(data_path, save_path):
     print("# samples in each class in the CV set")
     print(np.unique(y_validation, return_counts=True))
 
+    batch_size = np.min([BATCH_SIZE, y_train[y_train == 1].shape[0]])
+    # batch_size = BATCH_SIZE
+
     ###
     print("Training model")
     if not os.path.exists(save_path):
         os.makedirs(save_path)
+
     lr_model, multirocket = train_model(
         X_train,
         y_train,
@@ -276,6 +279,7 @@ def train_general_model(data_path, save_path):
         num_features=50_000,
         epochs=300,
         save_path=save_path,
+        batch_size=batch_size
     )
 
     lr_model.save(save_path)
@@ -321,6 +325,7 @@ def train_patient_specific(data_path, save_path):
         print(np.unique(y_validation, return_counts=True))
 
         batch_size = np.min([BATCH_SIZE, y_train[y_train == 1].shape[0]])
+        # batch_size = BATCH_SIZE
         ###
         print("Training model")
         patient_model_save_path = os.path.join(save_path, str(patient))
@@ -357,7 +362,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--training-mode",
         type=str,
-        default="general",
+        default="patient-specific",
         required=False,
         choices=["general", "patient-specific"],
     )
