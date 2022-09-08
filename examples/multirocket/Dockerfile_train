@@ -19,4 +19,5 @@ WORKDIR /app
 COPY train_model.py  multirocket.py ./
 
 # SPECIFY THE ENTRYPOINT SCRIPT
-CMD ["python", "-u", "train_model.py"]
+# CMD ["python", "-u", "train_model.py", "--training-mode patient-specific"]
+CMD ["python", "-u", "train_model.py", "--training-mode general"]

@@ -11,14 +11,14 @@ import scipy.signal
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
-from multirocket import train_multirocket, train_classifier, MultiRocket, MultiRocketMultivariate
+from examples.multirocket.multirocket import train_multirocket, train_classifier, MultiRocket, MultiRocketMultivariate
 
 BATCH_SIZE = 256 # 16
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
-TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input train data
+TRAIN_DATA_DIR = Path("./dataset/train/")  # Location of input train data
 # TRAIN_DATA_DIR = Path("D:/Dataset/msg_contest_data/train")  # Location of input train data
 
 

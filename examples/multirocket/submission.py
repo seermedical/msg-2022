@@ -13,9 +13,9 @@ from train_model import tf_load_parquet
 start_time = time.time()
 
 # SETTINGS
-TRAINED_MODEL_DIR = Path("/trained_model/")  # Location of input test data
-TEST_DATA_DIR = Path("/dataset/test/")  # Location of input test data
-PREDICTIONS_FILEPATH = "/submission/submission.csv"  # Output file.
+TRAINED_MODEL_DIR = Path("./trained_model/")  # Location of input test data
+TEST_DATA_DIR = Path("./dataset/test/")  # Location of input test data
+PREDICTIONS_FILEPATH = "./submission/submission.csv"  # Output file.
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 
 lr_model = tf.keras.models.load_model(TRAINED_MODEL_DIR)
