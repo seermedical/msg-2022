@@ -5,109 +5,28 @@
 # Tan, Chang Wei, et al. "MultiRocket: Multiple pooling operators and transformations for fast and effective
 # time series classification." Data Mining and Knowledge Discovery (2022): 1-24.
 # https://doi.org/10.1007/s10618-022-00844-1
-import os
+
+
 import pickle
-from typing import Union
+import time
 
 import numba
 import numpy as np
-import pandas as pd
 import psutil
 import tensorflow as tf
 from numba import njit, prange
-from tensorflow_addons.optimizers import SGDW, TriangularCyclicalLearningRate
+from sklearn.linear_model import RidgeClassifierCV
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
-SEED = 42
+from logistic_regression import LogisticRegression
 
-tf.random.set_seed(SEED)
-np.random.seed(SEED)
-
-
-@njit("float32[:](float64[:,:],int32[:],int32[:],float32[:])",
-      fastmath=True, parallel=False, cache=True)
-def _fit_biases(X, dilations, num_features_per_dilation, quantiles):
-    num_examples, input_length = X.shape
-
-    # equivalent to:
-    # >>> from itertools import combinations
-    # >>> indices = np.array([_ for _ in combinations(np.arange(9), 3)], dtype = np.int32)
-    indices = np.array((
-        0, 1, 2, 0, 1, 3, 0, 1, 4, 0, 1, 5, 0, 1, 6, 0, 1, 7, 0, 1, 8,
-        0, 2, 3, 0, 2, 4, 0, 2, 5, 0, 2, 6, 0, 2, 7, 0, 2, 8, 0, 3, 4,
-        0, 3, 5, 0, 3, 6, 0, 3, 7, 0, 3, 8, 0, 4, 5, 0, 4, 6, 0, 4, 7,
-        0, 4, 8, 0, 5, 6, 0, 5, 7, 0, 5, 8, 0, 6, 7, 0, 6, 8, 0, 7, 8,
-        1, 2, 3, 1, 2, 4, 1, 2, 5, 1, 2, 6, 1, 2, 7, 1, 2, 8, 1, 3, 4,
-        1, 3, 5, 1, 3, 6, 1, 3, 7, 1, 3, 8, 1, 4, 5, 1, 4, 6, 1, 4, 7,
-        1, 4, 8, 1, 5, 6, 1, 5, 7, 1, 5, 8, 1, 6, 7, 1, 6, 8, 1, 7, 8,
-        2, 3, 4, 2, 3, 5, 2, 3, 6, 2, 3, 7, 2, 3, 8, 2, 4, 5, 2, 4, 6,
-        2, 4, 7, 2, 4, 8, 2, 5, 6, 2, 5, 7, 2, 5, 8, 2, 6, 7, 2, 6, 8,
-        2, 7, 8, 3, 4, 5, 3, 4, 6, 3, 4, 7, 3, 4, 8, 3, 5, 6, 3, 5, 7,
-        3, 5, 8, 3, 6, 7, 3, 6, 8, 3, 7, 8, 4, 5, 6, 4, 5, 7, 4, 5, 8,
-        4, 6, 7, 4, 6, 8, 4, 7, 8, 5, 6, 7, 5, 6, 8, 5, 7, 8, 6, 7, 8
-    ), dtype=np.int32).reshape(84, 3)
-
-    num_kernels = len(indices)
-    num_dilations = len(dilations)
-
-    num_features = num_kernels * np.sum(num_features_per_dilation)
-
-    biases = np.zeros(num_features, dtype=np.float32)
-
-    feature_index_start = 0
-
-    for dilation_index in range(num_dilations):
-
-        dilation = dilations[dilation_index]
-        padding = ((9 - 1) * dilation) // 2
-
-        num_features_this_dilation = num_features_per_dilation[dilation_index]
-
-        for kernel_index in range(num_kernels):
-
-            feature_index_end = feature_index_start + num_features_this_dilation
-
-            _X = X[np.random.randint(num_examples)]
-
-            A = -_X  # A = alpha * X = -X
-            G = _X + _X + _X  # G = gamma * X = 3X
-
-            C_alpha = np.zeros(input_length, dtype=np.float32)
-            C_alpha[:] = A
-
-            C_gamma = np.zeros((9, input_length), dtype=np.float32)
-            C_gamma[9 // 2] = G
-
-            start = dilation
-            end = input_length - padding
-
-            for gamma_index in range(9 // 2):
-                C_alpha[-end:] = C_alpha[-end:] + A[:end]
-                C_gamma[gamma_index, -end:] = G[:end]
-
-                end += dilation
-
-            for gamma_index in range(9 // 2 + 1, 9):
-                C_alpha[:-start] = C_alpha[:-start] + A[start:]
-                C_gamma[gamma_index, :-start] = G[start:]
-
-                start += dilation
-
-            index_0, index_1, index_2 = indices[kernel_index]
-
-            C = C_alpha + C_gamma[index_0] + C_gamma[index_1] + C_gamma[index_2]
-
-            biases[feature_index_start:feature_index_end] = np.quantile(C, quantiles[
-                                                                           feature_index_start:feature_index_end])
-
-            feature_index_start = feature_index_end
-
-    return biases
+name = "MultiRocket"
 
 
 @njit("float32[:](float64[:,:,:],int32[:],int32[:],int32[:],int32[:],float32[:])",
       fastmath=True, parallel=False, cache=True)
-def _fit_biases_multivariate(X, num_channels_per_combination, channel_indices, dilations, num_features_per_dilation,
-                             quantiles):
+def _fit_biases(X, num_channels_per_combination, channel_indices, dilations, num_features_per_dilation, quantiles):
     num_examples, num_channels, input_length = X.shape
 
     # equivalent to:
@@ -227,23 +146,7 @@ def _quantiles(n):
     return np.array([(_ * ((np.sqrt(5) + 1) / 2)) % 1 for _ in range(1, n + 1)], dtype=np.float32)
 
 
-def _fit(X, num_features=10_000, max_dilations_per_kernel=32):
-    _, input_length = X.shape
-
-    num_kernels = 84
-
-    dilations, num_features_per_dilation = _fit_dilations(input_length, num_features, max_dilations_per_kernel)
-
-    num_features_per_kernel = np.sum(num_features_per_dilation)
-
-    quantiles = _quantiles(num_kernels * num_features_per_kernel)
-
-    biases = _fit_biases(X, dilations, num_features_per_dilation, quantiles)
-
-    return dilations, num_features_per_dilation, biases
-
-
-def _fit_multivariate(X, num_features=10_000, max_dilations_per_kernel=32):
+def fit(X, num_features=10_000, max_dilations_per_kernel=32):
     _, num_channels, input_length = X.shape
 
     num_kernels = 84
@@ -274,301 +177,16 @@ def _fit_multivariate(X, num_features=10_000, max_dilations_per_kernel=32):
 
         num_channels_start = num_channels_end
 
-    biases = _fit_biases_multivariate(X, num_channels_per_combination, channel_indices,
-                                      dilations, num_features_per_dilation, quantiles)
+    biases = _fit_biases(X, num_channels_per_combination, channel_indices,
+                         dilations, num_features_per_dilation, quantiles)
 
     return num_channels_per_combination, channel_indices, dilations, num_features_per_dilation, biases
 
 
 @njit(
-    "float32[:,:](float64[:,:],float64[:,:],Tuple((int32[:],int32[:],float32[:])),Tuple((int32[:],int32[:],float32[:])),int32)",
-    fastmath=True, parallel=True, cache=True)
-def _transform(X, X1, parameters, parameters1, n_features_per_kernel=4):
-    num_examples, input_length = X.shape
-
-    dilations, num_features_per_dilation, biases = parameters
-    dilations1, num_features_per_dilation1, biases1 = parameters1
-
-    # equivalent to:
-    # >>> from itertools import combinations
-    # >>> indices = np.array([_ for _ in combinations(np.arange(9), 3)], dtype = np.int32)
-    indices = np.array((
-        0, 1, 2, 0, 1, 3, 0, 1, 4, 0, 1, 5, 0, 1, 6, 0, 1, 7, 0, 1, 8,
-        0, 2, 3, 0, 2, 4, 0, 2, 5, 0, 2, 6, 0, 2, 7, 0, 2, 8, 0, 3, 4,
-        0, 3, 5, 0, 3, 6, 0, 3, 7, 0, 3, 8, 0, 4, 5, 0, 4, 6, 0, 4, 7,
-        0, 4, 8, 0, 5, 6, 0, 5, 7, 0, 5, 8, 0, 6, 7, 0, 6, 8, 0, 7, 8,
-        1, 2, 3, 1, 2, 4, 1, 2, 5, 1, 2, 6, 1, 2, 7, 1, 2, 8, 1, 3, 4,
-        1, 3, 5, 1, 3, 6, 1, 3, 7, 1, 3, 8, 1, 4, 5, 1, 4, 6, 1, 4, 7,
-        1, 4, 8, 1, 5, 6, 1, 5, 7, 1, 5, 8, 1, 6, 7, 1, 6, 8, 1, 7, 8,
-        2, 3, 4, 2, 3, 5, 2, 3, 6, 2, 3, 7, 2, 3, 8, 2, 4, 5, 2, 4, 6,
-        2, 4, 7, 2, 4, 8, 2, 5, 6, 2, 5, 7, 2, 5, 8, 2, 6, 7, 2, 6, 8,
-        2, 7, 8, 3, 4, 5, 3, 4, 6, 3, 4, 7, 3, 4, 8, 3, 5, 6, 3, 5, 7,
-        3, 5, 8, 3, 6, 7, 3, 6, 8, 3, 7, 8, 4, 5, 6, 4, 5, 7, 4, 5, 8,
-        4, 6, 7, 4, 6, 8, 4, 7, 8, 5, 6, 7, 5, 6, 8, 5, 7, 8, 6, 7, 8
-    ), dtype=np.int32).reshape(84, 3)
-
-    num_kernels = len(indices)
-    num_dilations = len(dilations)
-    num_dilations1 = len(dilations1)
-
-    num_features = num_kernels * np.sum(num_features_per_dilation)
-    num_features1 = num_kernels * np.sum(num_features_per_dilation1)
-
-    features = np.zeros((num_examples, (num_features + num_features1) * n_features_per_kernel), dtype=np.float32)
-    n_features_per_transform = np.int64(features.shape[1] / 2)
-
-    for example_index in prange(num_examples):
-
-        _X = X[example_index]
-
-        A = -_X  # A = alpha * X = -X
-        G = _X + _X + _X  # G = gamma * X = 3X
-
-        # Base series
-        feature_index_start = 0
-
-        for dilation_index in range(num_dilations):
-
-            _padding0 = dilation_index % 2
-
-            dilation = dilations[dilation_index]
-            padding = ((9 - 1) * dilation) // 2
-
-            num_features_this_dilation = num_features_per_dilation[dilation_index]
-
-            C_alpha = np.zeros(input_length, dtype=np.float32)
-            C_alpha[:] = A
-
-            C_gamma = np.zeros((9, input_length), dtype=np.float32)
-            C_gamma[9 // 2] = G
-
-            start = dilation
-            end = input_length - padding
-
-            for gamma_index in range(9 // 2):
-                C_alpha[-end:] = C_alpha[-end:] + A[:end]
-                C_gamma[gamma_index, -end:] = G[:end]
-
-                end += dilation
-
-            for gamma_index in range(9 // 2 + 1, 9):
-                C_alpha[:-start] = C_alpha[:-start] + A[start:]
-                C_gamma[gamma_index, :-start] = G[start:]
-
-                start += dilation
-
-            for kernel_index in range(num_kernels):
-
-                feature_index_end = feature_index_start + num_features_this_dilation
-
-                _padding1 = (_padding0 + kernel_index) % 2
-
-                index_0, index_1, index_2 = indices[kernel_index]
-
-                C = C_alpha + \
-                    C_gamma[index_0] + \
-                    C_gamma[index_1] + \
-                    C_gamma[index_2]
-
-                if _padding1 == 0:
-                    for feature_count in range(num_features_this_dilation):
-                        feature_index = feature_index_start + feature_count
-                        _bias = biases[feature_index]
-
-                        ppv = 0
-                        last_val = 0
-                        max_stretch = 0.0
-                        mean_index = 0
-                        mean = 0
-
-                        for j in range(C.shape[0]):
-                            if C[j] > _bias:
-                                ppv += 1
-                                mean_index += j
-                                mean += C[j] + _bias
-                            elif C[j] < _bias:
-                                stretch = j - last_val
-                                if stretch > max_stretch:
-                                    max_stretch = stretch
-                                last_val = j
-                        stretch = C.shape[0] - 1 - last_val
-                        if stretch > max_stretch:
-                            max_stretch = stretch
-
-                        end = feature_index
-                        features[example_index, end] = ppv / C.shape[0]
-                        end = end + num_features
-                        features[example_index, end] = max_stretch
-                        end = end + num_features
-                        features[example_index, end] = mean / ppv if ppv > 0 else 0
-                        end = end + num_features
-                        features[example_index, end] = mean_index / ppv if ppv > 0 else -1
-                else:
-                    _c = C[padding:-padding]
-
-                    for feature_count in range(num_features_this_dilation):
-                        feature_index = feature_index_start + feature_count
-                        _bias = biases[feature_index]
-
-                        ppv = 0
-                        last_val = 0
-                        max_stretch = 0.0
-                        mean_index = 0
-                        mean = 0
-
-                        for j in range(_c.shape[0]):
-                            if _c[j] > _bias:
-                                ppv += 1
-                                mean_index += j
-                                mean += _c[j] + _bias
-                            elif _c[j] < _bias:
-                                stretch = j - last_val
-                                if stretch > max_stretch:
-                                    max_stretch = stretch
-                                last_val = j
-                        stretch = _c.shape[0] - 1 - last_val
-                        if stretch > max_stretch:
-                            max_stretch = stretch
-
-                        end = feature_index
-                        features[example_index, end] = ppv / _c.shape[0]
-                        end = end + num_features
-                        features[example_index, end] = max_stretch
-                        end = end + num_features
-                        features[example_index, end] = mean / ppv if ppv > 0 else 0
-                        end = end + num_features
-                        features[example_index, end] = mean_index / ppv if ppv > 0 else -1
-
-                feature_index_start = feature_index_end
-
-        # First order difference
-        _X1 = X1[example_index]
-        A1 = -_X1  # A = alpha * X = -X
-        G1 = _X1 + _X1 + _X1  # G = gamma * X = 3X
-
-        feature_index_start = 0
-
-        for dilation_index in range(num_dilations1):
-
-            _padding0 = dilation_index % 2
-
-            dilation = dilations1[dilation_index]
-            padding = ((9 - 1) * dilation) // 2
-
-            num_features_this_dilation = num_features_per_dilation1[dilation_index]
-
-            C_alpha = np.zeros(input_length - 1, dtype=np.float32)
-            C_alpha[:] = A1
-
-            C_gamma = np.zeros((9, input_length - 1), dtype=np.float32)
-            C_gamma[9 // 2] = G1
-
-            start = dilation
-            end = input_length - padding
-
-            for gamma_index in range(9 // 2):
-                C_alpha[-end:] = C_alpha[-end:] + A1[:end]
-                C_gamma[gamma_index, -end:] = G1[:end]
-
-                end += dilation
-
-            for gamma_index in range(9 // 2 + 1, 9):
-                C_alpha[:-start] = C_alpha[:-start] + A1[start:]
-                C_gamma[gamma_index, :-start] = G1[start:]
-
-                start += dilation
-
-            for kernel_index in range(num_kernels):
-
-                feature_index_end = feature_index_start + num_features_this_dilation
-
-                _padding1 = (_padding0 + kernel_index) % 2
-
-                index_0, index_1, index_2 = indices[kernel_index]
-
-                C = C_alpha + \
-                    C_gamma[index_0] + \
-                    C_gamma[index_1] + \
-                    C_gamma[index_2]
-
-                if _padding1 == 0:
-                    for feature_count in range(num_features_this_dilation):
-                        feature_index = feature_index_start + feature_count
-                        _bias = biases1[feature_index]
-
-                        ppv = 0
-                        last_val = 0
-                        max_stretch = 0.0
-                        mean_index = 0
-                        mean = 0
-
-                        for j in range(C.shape[0]):
-                            if C[j] > _bias:
-                                ppv += 1
-                                mean_index += j
-                                mean += C[j] + _bias
-                            elif C[j] < _bias:
-                                stretch = j - last_val
-                                if stretch > max_stretch:
-                                    max_stretch = stretch
-                                last_val = j
-                        stretch = C.shape[0] - 1 - last_val
-                        if stretch > max_stretch:
-                            max_stretch = stretch
-
-                        end = feature_index + n_features_per_transform
-                        features[example_index, end] = ppv / C.shape[0]
-                        end = end + num_features
-                        features[example_index, end] = max_stretch
-                        end = end + num_features
-                        features[example_index, end] = mean / ppv if ppv > 0 else 0
-                        end = end + num_features
-                        features[example_index, end] = mean_index / ppv if ppv > 0 else -1
-                else:
-                    _c = C[padding:-padding]
-
-                    for feature_count in range(num_features_this_dilation):
-                        feature_index = feature_index_start + feature_count
-                        _bias = biases1[feature_index]
-
-                        ppv = 0
-                        last_val = 0
-                        max_stretch = 0.0
-                        mean_index = 0
-                        mean = 0
-
-                        for j in range(_c.shape[0]):
-                            if _c[j] > _bias:
-                                ppv += 1
-                                mean_index += j
-                                mean += _c[j] + _bias
-                            elif _c[j] < _bias:
-                                stretch = j - last_val
-                                if stretch > max_stretch:
-                                    max_stretch = stretch
-                                last_val = j
-                        stretch = _c.shape[0] - 1 - last_val
-                        if stretch > max_stretch:
-                            max_stretch = stretch
-
-                        end = feature_index + n_features_per_transform
-                        features[example_index, end] = ppv / _c.shape[0]
-                        end = end + num_features
-                        features[example_index, end] = max_stretch
-                        end = end + num_features
-                        features[example_index, end] = mean / ppv if ppv > 0 else 0
-                        end = end + num_features
-                        features[example_index, end] = mean_index / ppv if ppv > 0 else -1
-
-                feature_index_start = feature_index_end
-
-    return features
-
-
-@njit(
     "float32[:,:](float64[:,:,:],float64[:,:,:],Tuple((int32[:],int32[:],int32[:],int32[:],float32[:])),Tuple((int32[:],int32[:],int32[:],int32[:],float32[:])),int32)",
     fastmath=True, parallel=True, cache=True)
-def _transform_multivariate(X, X1, parameters, parameters1, n_features_per_kernel=4):
+def transform(X, X1, parameters, parameters1, n_features_per_kernel=4):
     num_examples, num_channels, input_length = X.shape
 
     num_channels_per_combination, channel_indices, dilations, num_features_per_dilation, biases = parameters
@@ -877,35 +495,23 @@ class MultiRocket:
     def __init__(
             self,
             num_features=50000,
-            max_dilations_per_kernel=32,
-            random_state=None,
-            num_threads=-1
+            classifier="ridge",
+            num_threads=-1,
+            verbose=0,
+            save_path=None,
+            load_model=False,
     ):
-        """MultiRocket
-        Multiple pooling operators and transformations for fast and effective time series classification
-
-        **UniVariate**
-        UniVariate input only.  Use class MultiRocketMultivariate for univariate input.
-        @article{tan_et_al_2022,
-          title     = {{MultiRocket}: Multiple pooling operators and transformations for fast and effective time series classification},
-          author    = {Tan, Chang Wei and Dempster, Angus and Bergmeir, Christoph and Webb, Geoffrey I},
-          journal   = {Data Mining and Knowledge Discovery},
-          pages     = {1--24},
-          year      = {2022},
-          publisher = {Springer}
-        }
-        Parameters
-        ----------
-        num_features             : int, number of features (default 50,000)
-        max_dilations_per_kernel : int, maximum number of dilations per kernel (default 32)
-        random_state             : int, random seed (optional, default None)
-        num_threads              : int, number of threads (optional, default -1)
-        """
         if num_threads < 0:
             num_threads = psutil.cpu_count(logical=True)
             numba.set_num_threads(num_threads)
         else:
             numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
+
+        self.save_path = save_path
+        self.load_model = load_model
+        self.classifier_type = classifier
+
+        self.name = name
 
         self.base_parameters = None
         self.diff1_parameters = None
@@ -914,323 +520,164 @@ class MultiRocket:
         self.num_features = num_features / 2  # 1 per transformation
         self.num_kernels = int(self.num_features / self.n_features_per_kernel)
 
-        self.max_dilations_per_kernel = max_dilations_per_kernel
-        self.random_state = (
-            np.int32(random_state) if isinstance(random_state, int) else None
-        )
+        if verbose > 1:
+            print('[{}] Creating {} with {} kernels'.format(self.name, self.name, self.num_kernels))
 
-        self._is_fitted = False
-
-    def fit(self, X, y=None):
-        """Fits dilations and biases to input time series.
-        Parameters
-        ----------
-        X : pandas DataFrame, input time series (sktime format)
-        y : array_like, target values (optional, ignored as irrelevant)
-        Returns
-        -------
-        self
-        """
-        if X.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
-            _x_train[:, :, :X.shape[2]] = X
-            X = _x_train
-            del _x_train
-
-        xx = np.diff(X, 1)
-
-        self.base_parameters = _fit(
-            X,
-            num_features=self.num_kernels
-        )
-        self.diff1_parameters = _fit(
-            xx,
-            num_features=self.num_kernels
-        )
-
-        self._is_fitted = True
-
-        return self
-
-    def transform(self, X, y=None):
-        """Transforms input time series.
-        Parameters
-        ----------
-        X : pandas DataFrame, input time series (sktime format)
-        y : array_like, target values (optional, ignored as irrelevant)
-        Returns
-        -------
-        pandas DataFrame, transformed features
-        """
-        if X.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
-            _x_train[:, :, :X.shape[2]] = X
-            X = _x_train
-            del _x_train
-
-        xx = np.diff(X, 1)
-
-        return pd.DataFrame(_transform(
-            X, xx,
-            self.base_parameters, self.diff1_parameters,
-            self.n_features_per_kernel
-        ))
-
-    def fit_transform(self, X, y=None):
-        """Fit to data, then transform it.
-        Fits transformer to X and y with optional parameters fit_params
-        and returns a transformed version of X.
-        Parameters
-        ----------
-        X : pd.DataFrame, pd.Series or np.ndarray
-            Data to be transformed
-        y : pd.Series or np.ndarray, optional (default=None)
-            Target values of data to be transformed.
-        Returns
-        -------
-        Xt : pd.DataFrame, pd.Series or np.ndarray
-            Transformed data.
-        """
-        # Non-optimized default implementation; override when a better
-        # method is possible for a given algorithm.
-        if X is None:
-            # Fit method of arity 1 (unsupervised transformation)
-            return self.fit(X).transform(X)
+        if classifier.lower() == "ridge":
+            self.classifier = make_pipeline(
+                StandardScaler(),
+                RidgeClassifierCV(
+                    alphas=np.logspace(-3, 3, 10),
+                    normalize=False
+                )
+            )
         else:
-            # Fit method of arity 2 (supervised transformation)
-            return self.fit(X, y).transform(X)
+            self.classifier = LogisticRegression(
+                num_features=num_features,
+                max_epochs=200,
+            )
 
+        self.stats = {
+            "model_name": name,
+            "train_acc": -1,
+            "train_duration": 0,
+            "test_duration": 0,
+            "generate_kernel_duration": 0,
+            "train_transforms_duration": 0,
+            "test_transforms_duration": 0,
+            "apply_kernel_on_train_duration": 0,
+            "apply_kernel_on_test_duration": 0,
+        }
 
-class MultiRocketMultivariate:
-    def __init__(
+        self.verbose = verbose
+
+    def fit(
             self,
-            num_features=50000,
-            max_dilations_per_kernel=32,
-            random_state=None,
-            num_threads=-1
+            x_train, y_train,
+            predict_on_train=True,
+            **kwargs
     ):
-        """MultiRocket
-        Multiple pooling operators and transformations for fast and effective time series classification
+        if self.verbose > 1:
+            print('[{}] Training with training set of {}'.format(self.name, x_train.shape))
 
-        **Multivariate**
-        MultiVariate input only.  Use class MultiRocket for univariate input.
-        @article{tan_et_al_2022,
-          title     = {{MultiRocket}: Multiple pooling operators and transformations for fast and effective time series classification},
-          author    = {Tan, Chang Wei and Dempster, Angus and Bergmeir, Christoph and Webb, Geoffrey I},
-          journal   = {Data Mining and Knowledge Discovery},
-          pages     = {1--24},
-          year      = {2022},
-          publisher = {Springer}
-        }
-        Parameters
-        ----------
-        num_features             : int, number of features (default 50,000)
-        max_dilations_per_kernel : int, maximum number of dilations per kernel (default 32)
-        random_state             : int, random seed (optional, default None)
-        num_threads              : int, number of threads (optional, default -1)
-        """
-        if num_threads < 0:
-            num_threads = psutil.cpu_count(logical=True)
-            numba.set_num_threads(num_threads)
-        else:
-            numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
-
-        self.base_parameters = None
-        self.diff1_parameters = None
-
-        self.n_features_per_kernel = 4
-        self.num_features = num_features / 2  # 1 per transformation
-        self.num_kernels = int(self.num_features / self.n_features_per_kernel)
-
-        self.max_dilations_per_kernel = max_dilations_per_kernel
-        self.random_state = (
-            np.int32(random_state) if isinstance(random_state, int) else None
-        )
-
-        self._is_fitted = False
-
-    def fit(self, X, y=None):
-        """Fits dilations and biases to input time series.
-        Parameters
-        ----------
-        X : pandas DataFrame, input time series (sktime format)
-        y : array_like, target values (optional, ignored as irrelevant)
-        Returns
-        -------
-        self
-        """
-        if X.shape[2] < 10:
+        if x_train.shape[2] < 10:
             # handling very short series (like PensDigit from the MTSC archive)
             # series have to be at least a length of 10 (including differencing)
-            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
-            _x_train[:, :, :X.shape[2]] = X
-            X = _x_train
+            _x_train = np.zeros((x_train.shape[0], x_train.shape[1], 10), dtype=x_train.dtype)
+            _x_train[:, :, :x_train.shape[2]] = x_train
+            x_train = _x_train
             del _x_train
 
-        xx = np.diff(X, 1)
+        start_time = time.perf_counter()
 
-        self.base_parameters = _fit_multivariate(
-            X,
+        _start_time = time.perf_counter()
+        xx = np.diff(x_train, 1)
+        train_transforms_duration = time.perf_counter() - _start_time
+
+        _start_time = time.perf_counter()
+        self.base_parameters = fit(
+            x_train,
             num_features=self.num_kernels
         )
-        self.diff1_parameters = _fit_multivariate(
+        self.diff1_parameters = fit(
             xx,
             num_features=self.num_kernels
         )
+        generate_kernel_duration = time.perf_counter() - _start_time
 
-        self._is_fitted = True
-        return self
-
-    def transform(self, X, y=None):
-        """Transforms input time series.
-        Parameters
-        ----------
-        X : pandas DataFrame, input time series (sktime format)
-        y : array_like, target values (optional, ignored as irrelevant)
-        Returns
-        -------
-        pandas DataFrame, transformed features
-        """
-        if X.shape[2] < 10:
-            # handling very short series (like PensDigit from the MTSC archive)
-            # series have to be at least a length of 10 (including differencing)
-            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
-            _x_train[:, :, :X.shape[2]] = X
-            X = _x_train
-            del _x_train
-
-        xx = np.diff(X, 1)
-
-        return pd.DataFrame(_transform_multivariate(
-            X, xx,
+        _start_time = time.perf_counter()
+        x_train_transform = transform(
+            x_train, xx,
             self.base_parameters, self.diff1_parameters,
             self.n_features_per_kernel
-        ))
+        )
+        apply_kernel_on_train_duration = time.perf_counter() - _start_time
 
-    def fit_transform(self, X, y=None):
-        """Fit to data, then transform it.
-        Fits transformer to X and y with optional parameters fit_params
-        and returns a transformed version of X.
-        Parameters
-        ----------
-        X : pd.DataFrame, pd.Series or np.ndarray
-            Data to be transformed
-        y : pd.Series or np.ndarray, optional (default=None)
-            Target values of data to be transformed.
-        Returns
-        -------
-        Xt : pd.DataFrame, pd.Series or np.ndarray
-            Transformed data.
-        """
-        # Non-optimized default implementation; override when a better
-        # method is possible for a given algorithm.
-        if X is None:
-            # Fit method of arity 1 (unsupervised transformation)
-            return self.fit(X).transform(X)
+        x_train_transform = np.nan_to_num(x_train_transform)
+
+        elapsed_time = time.perf_counter() - start_time
+        if self.verbose > 1:
+            print('[{}] Kernels applied!, took {}s'.format(self.name, elapsed_time))
+            print('[{}] Transformed Shape {}'.format(self.name, x_train_transform.shape))
+
+        if self.verbose > 1:
+            print('[{}] Training'.format(self.name))
+
+        _start_time = time.perf_counter()
+        self.classifier.fit(x_train_transform, y_train)
+        train_duration = time.perf_counter() - _start_time
+
+        if self.verbose > 1:
+            print('[{}] Training done!, took {:.3f}s'.format(self.name, train_duration))
+        if predict_on_train:
+            yhat = self.classifier.predict(x_train_transform)
         else:
-            # Fit method of arity 2 (supervised transformation)
-            return self.fit(X, y).transform(X)
+            yhat = None
 
+        self.stats.update({
+            "generate_kernel_duration": generate_kernel_duration,
+            "train_transforms_duration": train_transforms_duration,
+            "apply_kernel_on_train_duration": apply_kernel_on_train_duration,
+            "train_duration": train_duration,
+        })
 
-def train_multirocket(
-        x, num_features: int = 50_000, max_dilations: int = 32
-) -> (np.ndarray, Union[MultiRocket, MultiRocketMultivariate]):
-    if x.shape[1] == 1:
-        rocket = MultiRocket(
-            num_features, max_dilations_per_kernel=max_dilations, random_state=SEED
+        return yhat
+
+    def predict(self, x):
+        if self.verbose > 1:
+            print('[{}] Predicting'.format(self.name))
+
+        _start_time = time.perf_counter()
+        xx = np.diff(x, 1)
+        test_transforms_duration = time.perf_counter() - _start_time
+
+        _start_time = time.perf_counter()
+        x_transform = transform(
+            x, xx,
+            self.base_parameters, self.diff1_parameters,
+            self.n_features_per_kernel
         )
-    else:
-        rocket = MultiRocketMultivariate(
-            num_features, max_dilations_per_kernel=max_dilations, random_state=SEED
-        )
-    X_train_transform = rocket.fit_transform(x)
+        apply_kernel_on_test_duration = time.perf_counter() - _start_time
 
-    return X_train_transform, rocket
+        x_transform = np.nan_to_num(x_transform)
+        if self.verbose > 1:
+            print('Kernels applied!, took {:.3f}s. Transformed shape: {}.'.format(
+                apply_kernel_on_test_duration,
+                x_transform.shape))
 
+        start_time = time.perf_counter()
+        yhat = self.classifier.predict(x_transform)
+        test_duration = time.perf_counter() - start_time
+        if self.verbose > 1:
+            print("[{}] Predicting completed, took {:.3f}s".format(self.name, test_duration))
 
-def build_logistic_regression_model(
-        dims: int, class_num: int = 2
-) -> tf.keras.models.Model:
-    out_dims = class_num if class_num > 2 else 1
-    inputs = tf.keras.layers.Input(batch_shape=(None, dims))
-    out_activation = "softmax" if out_dims > 1 else "sigmoid"
-    x = tf.keras.layers.Dense(
-        out_dims, activation=out_activation,
-        kernel_regularizer=tf.keras.regularizers.l1_l2(1e-4, 1e-4)
-    )(inputs)
+        self.stats.update({
+            "test_transforms_duration": test_transforms_duration,
+            "apply_kernel_on_test_duration": apply_kernel_on_test_duration,
+            "test_duration": test_duration,
+        })
 
-    model = tf.keras.models.Model(inputs=inputs, outputs=x)
+        if x.shape[0] == 1:
+            return yhat[0][0]
+        return yhat
 
-    model.summary()
+    def save(self):
+        if self.classifier_type.lower() == "logistic":
+            self.classifier.model.save(self.save_path)
+            self.classifier.model = None
 
-    return model
+        file = open(self.save_path + "/model." + self.name + '.pkl', 'wb')
+        file.write(pickle.dumps(self.__dict__))
+        file.close()
 
+    def load(self):
+        save_path = self.save_path
+        file = open(save_path + "/model." + self.name + '.pkl', 'rb')
+        data_pickle = file.read()
+        file.close()
 
-def train_classifier(
-        class_num: int,
-        train_data: tf.data.Dataset,
-        validation_data: tf.data.Dataset,
-        train_steps: int,
-        dims: int = 50_000,
-        epochs: int = 300,
-        save_path: str = "",
-) -> tf.keras.models.Model:
-    if not os.path.exists(save_path):
-        os.makedirs(save_path)
-    print("train_steps:", train_steps)
-    lr_scheduler = TriangularCyclicalLearningRate(
-        initial_learning_rate=1e-4,
-        maximal_learning_rate=1e-2,
-        step_size=8 * train_steps,
-    )
-    loss = tf.keras.losses.SparseCategoricalCrossentropy() if class_num > 2 else tf.keras.losses.BinaryCrossentropy()
-    model = build_logistic_regression_model(dims, class_num)
+        self.__dict__ = pickle.loads(data_pickle)
+        # self.n_features_per_kernel = np.int32(self.n_features_per_kernel)
 
-    optimizer = SGDW(learning_rate=lr_scheduler, weight_decay=1e-5)
-
-    metrics = [
-        tf.keras.metrics.AUC(
-            curve="PR",
-            num_thresholds=10000,
-            name="auprc",
-        ),
-        # RecallAtPrecision(
-        #     num_thresholds=10000,
-        #     precision=0.8,
-        #     name="sens",
-        # ),
-        tf.keras.metrics.PrecisionAtRecall(0.8, name="prec", num_thresholds=10000),
-        tf.keras.metrics.SpecificityAtSensitivity(0.8, name="specs", num_thresholds=10000),
-    ]
-    monitor = "val_auprc"
-
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-    callbacks = [
-        tf.keras.callbacks.EarlyStopping(
-            monitor=monitor,
-            mode="max",
-            min_delta=1e-4,
-            patience=15,
-            verbose=1,
-            restore_best_weights=True,
-        ),
-    ]
-
-    train_history = model.fit(
-        train_data,
-        validation_data=validation_data,
-        steps_per_epoch=train_steps,
-        epochs=epochs,
-        callbacks=callbacks,
-    )
-    model.save_weights(f"{save_path}/model_weights.hf5")
-
-    with open(f"{save_path}/train_history.dat", "w+b") as f:
-        pickle.dump(train_history.history, f)
-
-    return model
+        if self.classifier_type.lower() == "logistic":
+            self.classifier.model = tf.keras.models.load_model(save_path)

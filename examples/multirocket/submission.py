@@ -2,64 +2,179 @@
 This is the main script that will create the predictions on input data and save a predictions file.
 """
 import os
-import pickle
 import time
+from argparse import ArgumentParser
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
-from train_model import tf_load_parquet
+
+from multirocket import MultiRocket
+from tools import load_parquets
 
 start_time = time.time()
 
 # SETTINGS
-TRAINED_MODEL_DIR = Path("./trained_model/")  # Location of input test data
-TEST_DATA_DIR = Path("./dataset/test/")  # Location of input test data
-PREDICTIONS_FILEPATH = "./submission/submission.csv"  # Output file.
+TRAINED_MODEL_DIR = "./trained_model/"  # Location of input test data
+TEST_DATA_DIR = Path("../../dataset/dummy_test/test/")  # Location of input test data
+PREDICTIONS_DIR = "./submission"
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
-
-lr_model = tf.keras.models.load_model(TRAINED_MODEL_DIR)
-with open(TRAINED_MODEL_DIR / "multirocket.pkl", "rb") as f:
-    multirocket = pickle.load(f)
-
-# GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
-print("Getting list of files to run predictions on.")
-test_files = []
-for patient in os.listdir(TEST_DATA_DIR):
-    for session in os.listdir(TEST_DATA_DIR / patient):
-        for filename in os.listdir(TEST_DATA_DIR / patient / session):
-            test_files.append(Path(patient) / session / filename)
-predictions = pd.DataFrame({"filepath": test_files})
+NUM_CPUS = 4
 
 
-# CREATE PREDICTIONS
-def minirocket_transform(x):
-    return multirocket.transform(x.numpy())
+def predict_general_model(data_path, models_dir, num_cpus):
+    # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
+    print("Getting list of files to run predictions on.")
+    test_files = []
+    test_files2 = []
+    for patient in os.listdir(data_path):
+        for session in os.listdir(data_path / patient):
+            for filename in os.listdir(data_path / patient / session):
+                filepath = Path(patient) / session / filename
+                test_files.append(filepath)
+                test_files2.append(data_path / filepath)
+
+    # LOAD DATA
+    x_test, files = load_parquets(test_files2, y=None, n_sample=-1, num_cpus=num_cpus)
+
+    # LOAD MODEL
+    print("Loading models.")
+    model = MultiRocket(
+        classifier="logistic",
+        verbose=2,
+        num_threads=num_cpus,
+        save_path=models_dir + "/general"
+    )
+    model.load()
+
+    # CREATE PREDICTIONS
+    print("Creating predictions.")
+    prediction = model.predict(x_test)
+
+    predictions = pd.DataFrame({
+        "filepath": test_files,
+        "prediction": prediction.reshape((-1,))
+    })
+
+    return predictions
 
 
-def tf_minirocket_transform(x):
-    return tf.py_function(minirocket_transform, [x], tf.float64)
+def predict_patient_specific_model(data_path, models_dir, num_cpus, patients=None):
+    if patients is None:
+        patients = os.listdir(data_path)
+    # GET LIST OF ALL THE PARQUET FILES TO DO PREDICTIONS ON
+    print("Getting list of files to run predictions on.")
+    test_files = []
+    test_files2 = []
+    for patient in patients:
+        for session in os.listdir(data_path / patient):
+            for filename in os.listdir(data_path / patient / session):
+                filepath = Path(patient) / session / filename
+                test_files.append(filepath)
+                test_files2.append(data_path / filepath)
+
+    # LOAD DATA
+    x_test, files = load_parquets(test_files2, y=None, n_sample=-1, num_cpus=num_cpus)
+    files = [str(x).replace(str(data_path)+"\\", "") for x in files]
+
+    unique_patients = np.unique(patients)
+
+    predictions = []
+    for patient in unique_patients:
+        _x_test = []
+        _files = []
+        for i in range(len(files)):
+            if patient in files[i]:
+                _x_test.append(x_test[i])
+                _files.append(files[i])
+
+        _x_test = np.array(_x_test)
+
+        # LOAD MODEL
+        print("Loading models.")
+        model = MultiRocket(
+            classifier="logistic",
+            verbose=2,
+            num_threads=num_cpus,
+            save_path=models_dir + "/" + patient
+        )
+        model.load()
+
+        # CREATE PREDICTIONS
+        print("Creating predictions.")
+        prediction = model.predict(_x_test)
+
+        predictions.append(pd.DataFrame({
+            "filepath": _files,
+            "prediction": prediction.reshape((-1,))
+        }))
+
+    predictions = pd.concat(predictions)
+
+    return predictions
 
 
-print("Creating predictions.")
+MAIN_HERE = True
+if __name__ == "__main__":
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument(
+        "--data-path", type=str, default=TEST_DATA_DIR, required=False
+    )
+    arg_parser.add_argument(
+        "--models-dir", type=str, default=TRAINED_MODEL_DIR, required=False
+    )
+    arg_parser.add_argument(
+        "--predictions-path", type=str, default=PREDICTIONS_DIR, required=False
+    )
+    arg_parser.add_argument(
+        "--prediction-mode",
+        type=str,
+        default="2002",  # 1110,1869,1876,1904,1965,2002, patient-specific, general
+        required=False,
+    )
+    arg_parser.add_argument(
+        "--threads",
+        type=int,
+        default=NUM_CPUS,
+        required=False
+    )
+    arg_parser.add_argument(
+        "--sample",
+        type=int,
+        default=-1,
+        required=False
+    )
+    args = arg_parser.parse_args()
 
-x_test = predictions["filepath"].map(lambda x: str(TEST_DATA_DIR / x))
+    data_path = Path(args.data_path)
+    predictions_path = Path(args.predictions_path)
+    models_dir = args.models_dir
+    num_cpus = args.threads
+    n_sample = args.sample
+    prediction_mode = args.prediction_mode
 
-print(x_test.shape)
-test_dataset = (
-    tf.data.Dataset.from_tensor_slices(x_test)
-        .map(tf_load_parquet)
-        .batch(32, drop_remainder=False)
-        .map(tf_minirocket_transform)
-)
-y_pred = lr_model.predict(test_dataset).ravel()
-predictions["prediction"] = y_pred
+    PREDICTIONS_FILEPATH = f"{predictions_path}/submission.csv"  # Output file.
 
-# SAVE PREDICTIONS TO A CSV FILE
-print("Saving predictions.")
-predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+    if not os.path.exists(predictions_path):
+        os.makedirs(predictions_path)
 
-end_time = time.time()
-duration = end_time - start_time
+    # DEBUGGING INFO
+    print(f"Submission version {VERSION}")
+    # print(f"GPU available:   {torch.cuda.is_available()}")  # Use this if using pytorch
+    print(f"GPU available:   {tf.config.list_physical_devices('GPU')}")  # Use this if using tensorflow
 
-print(f"Done! Finished in {duration:.2f}s")
+    start_time = time.perf_counter()
+
+    if prediction_mode == "general":
+        predictions = predict_general_model(data_path=data_path, models_dir=models_dir, num_cpus=num_cpus)
+    else:
+        predictions = predict_patient_specific_model(data_path=data_path, models_dir=models_dir, num_cpus=num_cpus)
+
+    # SAVE PREDICTIONS TO A CSV FILE
+    print("Saving predictions.")
+    predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+
+    duration = time.perf_counter() - start_time
+
+    print(f"Done! Finished in {duration:.2f}s")
