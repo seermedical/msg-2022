@@ -5,14 +5,13 @@
 # Tan, Chang Wei, et al. "MultiRocket: Multiple pooling operators and transformations for fast and effective
 # time series classification." Data Mining and Knowledge Discovery (2022): 1-24.
 # https://doi.org/10.1007/s10618-022-00844-1
-import glob
 import os
 import pickle
 import time
 
 import numba
-import pandas as pd
 import numpy as np
+import pandas as pd
 import psutil
 import tensorflow as tf
 from numba import njit, prange
@@ -22,10 +21,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
-from train_model_old import load_parquet
-
-from tools import load_data
 from logistic_regression import LogisticRegression
+from tools import load_data
 
 name = "MultiRocket"
 
@@ -989,4 +986,3 @@ class MultiRocket:
             file.close()
 
             self.multirocket = pickle.loads(data_pickle)
-
