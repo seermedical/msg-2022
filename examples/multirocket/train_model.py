@@ -7,10 +7,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import psutil
 import tensorflow as tf
 
 from multirocket import MultiRocket
-from tools import load_parquets
+from tools import load_parquets, get_data
 
 # SETTINGS
 DATA_DIR = "D:/Dataset/msg_contest_data/train"  # Location of input train dataset
@@ -18,15 +19,15 @@ MODELS_DIR = "./trained_model"
 TRAIN_LABELS_FILEPATH = "D:/Dataset/msg_contest_data/train/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Training version. Optional and purely for logging purposes.
 NUM_CPUS = 4
+RAM_SIZE_THRESHOLD = 16 * 1024 * 1024 * 1024  # 16GB
 
 
 def train_general_model(group, n_sample=-1, num_cpus=-1):
     train_files = group["filepath"].values
     y_train = group["label"].values
 
-    x_train, y_train, _ = load_parquets(train_files, y_train, n_sample=n_sample, num_cpus=num_cpus)
-
-    print(x_train.shape, y_train.shape, len(np.unique(y_train)))
+    mem = psutil.virtual_memory()
+    print(f"MEM Available: {mem.available}, Threshold: {RAM_SIZE_THRESHOLD}")
 
     save_path = models_dir + "/general"
     if not os.path.exists(save_path):
@@ -38,26 +39,41 @@ def train_general_model(group, n_sample=-1, num_cpus=-1):
         num_threads=num_cpus,
         save_path=save_path
     )
-    model.fit(x_train, y_train)
 
-    # SAVE MODEL
-    print("Saving model.")
-    model.save()
+    if mem.available > RAM_SIZE_THRESHOLD:
+        x_train, y_train, _ = load_parquets(train_files, y_train, n_sample=n_sample, num_cpus=num_cpus)
 
-    del model, x_train, y_train
+        print(x_train.shape, y_train.shape, len(np.unique(y_train)))
+
+        model.fit(x_train, y_train)
+
+        # SAVE MODEL
+        print("Saving model.")
+        model.save()
+
+        del model, x_train, y_train
+    else:
+        sampled_data = get_data(group, n_sample=n_sample)
+
+        model.fit_large(sampled_data)
+
+        # SAVE MODEL
+        print("Saving model.")
+        model.save()
+
+        del model
 
 
 def train_patient_specific_model(train_labels, patients=None, n_sample=-1, num_cpus=-1):
     if patients is not None:
         train_labels = train_labels.loc[train_labels.patient.isin(patients)]
 
+    mem = psutil.virtual_memory()
+    print(f"MEM Available: {mem.available}, Threshold: {RAM_SIZE_THRESHOLD}")
+
     for patient, group in train_labels.groupby("patient"):
         train_files = group["filepath"].values
         y_train = group["label"].values
-
-        x_train, y_train, _ = load_parquets(train_files, y_train, n_sample=n_sample, num_cpus=num_cpus)
-
-        print(x_train.shape, y_train.shape, len(np.unique(y_train)))
 
         save_path = models_dir + "/" + patient
         if not os.path.exists(save_path):
@@ -69,13 +85,30 @@ def train_patient_specific_model(train_labels, patients=None, n_sample=-1, num_c
             num_threads=num_cpus,
             save_path=save_path
         )
-        model.fit(x_train, y_train)
 
-        # SAVE MODEL
-        print("Saving model.")
-        model.save()
+        if mem.available > RAM_SIZE_THRESHOLD:
+            x_train, y_train, _ = load_parquets(train_files, y_train, n_sample=n_sample, num_cpus=num_cpus)
 
-        del model, x_train, y_train
+            print(x_train.shape, y_train.shape, len(np.unique(y_train)))
+
+            model.fit(x_train, y_train)
+
+            # SAVE MODEL
+            print("Saving model.")
+            model.save()
+
+            del model, x_train, y_train
+
+        else:
+            sampled_data = get_data(group, n_sample=n_sample)
+
+            model.fit_large(sampled_data)
+
+            # SAVE MODEL
+            print("Saving model.")
+            model.save()
+
+            del model
 
 
 MAIN_HERE = True
@@ -126,6 +159,7 @@ if __name__ == "__main__":
     print("Getting list of files to train on.")
     train_labels = pd.read_csv(train_label_path)
     train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    train_labels["filepath"] = [Path(x) for x in train_labels["filepath"]]
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(data_path, x)
     )

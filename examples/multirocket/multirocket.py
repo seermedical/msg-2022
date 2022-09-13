@@ -5,20 +5,26 @@
 # Tan, Chang Wei, et al. "MultiRocket: Multiple pooling operators and transformations for fast and effective
 # time series classification." Data Mining and Knowledge Discovery (2022): 1-24.
 # https://doi.org/10.1007/s10618-022-00844-1
-
-
+import glob
+import os
 import pickle
 import time
 
 import numba
+import pandas as pd
 import numpy as np
 import psutil
 import tensorflow as tf
 from numba import njit, prange
+from p_tqdm import p_map
 from sklearn.linear_model import RidgeClassifierCV
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from train_model_old import load_parquet
+
+from tools import load_data
 from logistic_regression import LogisticRegression
 
 name = "MultiRocket"
@@ -491,10 +497,154 @@ def transform(X, X1, parameters, parameters1, n_features_per_kernel=4):
     return features
 
 
+class MultiRocketTransform:
+    def __init__(
+            self,
+            num_features=50000,
+            max_dilations_per_kernel=32,
+            random_state=None,
+            num_threads=-1
+    ):
+        """MultiRocket
+        Multiple pooling operators and transformations for fast and effective time series classification
+
+        **Multivariate**
+        MultiVariate input only.  Use class MultiRocket for univariate input.
+        @article{tan_et_al_2022,
+          title     = {{MultiRocket}: Multiple pooling operators and transformations for fast and effective time series classification},
+          author    = {Tan, Chang Wei and Dempster, Angus and Bergmeir, Christoph and Webb, Geoffrey I},
+          journal   = {Data Mining and Knowledge Discovery},
+          pages     = {1--24},
+          year      = {2022},
+          publisher = {Springer}
+        }
+        Parameters
+        ----------
+        num_features             : int, number of features (default 50,000)
+        max_dilations_per_kernel : int, maximum number of dilations per kernel (default 32)
+        random_state             : int, random seed (optional, default None)
+        num_threads              : int, number of threads (optional, default -1)
+        """
+        if num_threads < 0:
+            num_threads = psutil.cpu_count(logical=True)
+            numba.set_num_threads(num_threads)
+        else:
+            numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
+
+        self.base_parameters = None
+        self.diff1_parameters = None
+
+        self.n_features_per_kernel = 4
+        self.num_features = num_features / 2  # 1 per transformation
+        self.num_kernels = int(self.num_features / self.n_features_per_kernel)
+
+        self.max_dilations_per_kernel = max_dilations_per_kernel
+        self.random_state = (
+            np.int32(random_state) if isinstance(random_state, int) else None
+        )
+
+        self._is_fitted = False
+
+    def fit(self, X, y=None):
+        """Fits dilations and biases to input time series.
+        Parameters
+        ----------
+        X : pandas DataFrame, input time series (sktime format)
+        y : array_like, target values (optional, ignored as irrelevant)
+        Returns
+        -------
+        self
+        """
+        if X.shape[2] < 10:
+            # handling very short series (like PensDigit from the MTSC archive)
+            # series have to be at least a length of 10 (including differencing)
+            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
+            _x_train[:, :, :X.shape[2]] = X
+            X = _x_train
+            del _x_train
+
+        xx = np.diff(X, 1)
+
+        self.base_parameters = fit(
+            X,
+            num_features=self.num_kernels
+        )
+        self.diff1_parameters = fit(
+            xx,
+            num_features=self.num_kernels
+        )
+
+        self._is_fitted = True
+        return self
+
+    def transform(self, X, y=None):
+        """Transforms input time series.
+        Parameters
+        ----------
+        X : pandas DataFrame, input time series (sktime format)
+        y : array_like, target values (optional, ignored as irrelevant)
+        Returns
+        -------
+        pandas DataFrame, transformed features
+        """
+        if X.shape[2] < 10:
+            # handling very short series (like PensDigit from the MTSC archive)
+            # series have to be at least a length of 10 (including differencing)
+            _x_train = np.zeros((X.shape[0], X.shape[1], 10), dtype=X.dtype)
+            _x_train[:, :, :X.shape[2]] = X
+            X = _x_train
+            del _x_train
+
+        xx = np.diff(X, 1)
+
+        return pd.DataFrame(transform(
+            X, xx,
+            self.base_parameters, self.diff1_parameters,
+            self.n_features_per_kernel
+        ))
+
+    def fit_transform(self, X, y=None):
+        """Fit to data, then transform it.
+        Fits transformer to X and y with optional parameters fit_params
+        and returns a transformed version of X.
+        Parameters
+        ----------
+        X : pd.DataFrame, pd.Series or np.ndarray
+            Data to be transformed
+        y : pd.Series or np.ndarray, optional (default=None)
+            Target values of data to be transformed.
+        Returns
+        -------
+        Xt : pd.DataFrame, pd.Series or np.ndarray
+            Transformed data.
+        """
+        # Non-optimized default implementation; override when a better
+        # method is possible for a given algorithm.
+        if X is None:
+            # Fit method of arity 1 (unsupervised transformation)
+            return self.fit(X).transform(X)
+        else:
+            # Fit method of arity 2 (supervised transformation)
+            return self.fit(X, y).transform(X)
+
+
+def fit_multirocket(
+        x, num_features: int = 50_000, max_dilations: int = 32
+) -> (np.ndarray, MultiRocketTransform):
+    rocket = MultiRocketTransform(
+        num_features, max_dilations_per_kernel=max_dilations, random_state=42
+    )
+    X_train_transform = rocket.fit_transform(x)
+
+    return X_train_transform, rocket
+
+
 class MultiRocket:
     def __init__(
             self,
             num_features=50000,
+            max_dilations=32,
+            max_epochs=200,
             classifier="ridge",
             num_threads=-1,
             verbose=0,
@@ -503,9 +653,11 @@ class MultiRocket:
     ):
         if num_threads < 0:
             num_threads = psutil.cpu_count(logical=True)
-            numba.set_num_threads(num_threads)
         else:
-            numba.set_num_threads(min(num_threads, psutil.cpu_count(logical=True)))
+            num_threads = min(num_threads, psutil.cpu_count(logical=True))
+
+        numba.set_num_threads(num_threads)
+        self.num_threads = num_threads
 
         self.save_path = save_path
         self.load_model = load_model
@@ -516,6 +668,8 @@ class MultiRocket:
         self.base_parameters = None
         self.diff1_parameters = None
 
+        self.max_epochs = max_epochs
+        self.max_dilations = max_dilations
         self.n_features_per_kernel = 4
         self.num_features = num_features / 2  # 1 per transformation
         self.num_kernels = int(self.num_features / self.n_features_per_kernel)
@@ -534,7 +688,8 @@ class MultiRocket:
         else:
             self.classifier = LogisticRegression(
                 num_features=num_features,
-                max_epochs=200,
+                max_epochs=max_epochs,
+                save_path=save_path
             )
 
         self.stats = {
@@ -550,6 +705,8 @@ class MultiRocket:
         }
 
         self.verbose = verbose
+
+        self.multirocket = None
 
     def fit(
             self,
@@ -623,6 +780,107 @@ class MultiRocket:
 
         return yhat
 
+    def fit_large(
+            self,
+            sampled_data,
+            predict_on_train=True,
+            **kwargs
+    ):
+        X_train = []
+        X_validation = []
+        y_train = []
+        y_validation = []
+        for patient, group in sampled_data.groupby("patient"):
+            _x_train, _x_validation, _y_train, _y_validation = train_test_split(
+                group["filepath"],
+                group["label"],
+                test_size=0.2,
+                random_state=42,
+            )
+            X_train.append(_x_train)
+            X_validation.append(_x_validation)
+            y_train.append(_y_train)
+            y_validation.append(_y_validation)
+
+        X_train = pd.concat(X_train)
+        X_validation = pd.concat(X_validation)
+        y_train = pd.concat(y_train)
+        y_validation = pd.concat(y_validation)
+
+        if self.verbose > 1:
+            print('[{}] Training with training set of {}'.format(self.name, X_train.shape[0]))
+
+        pos_samples = X_train[y_train == 1]
+        pos_samples = pos_samples.sample(int(0.2 * pos_samples.shape[0]))
+
+        neg_samples = X_train[y_train == 0]
+        neg_samples = neg_samples.sample(int(0.1 * neg_samples.shape[0]))
+
+        tmp = pd.concat([pos_samples, neg_samples]).reset_index(drop=True)
+        if self.verbose > 1:
+            print(f"Fitting multirocket with {tmp.shape[0]} series")
+
+        sampled_data = np.array(p_map(
+            load_data,
+            tmp,
+            num_cpus=self.num_threads
+        ))
+        del tmp
+
+        transformed_data, multirocket = fit_multirocket(
+            sampled_data,
+            num_features=int(self.num_features * 2),
+            max_dilations=self.max_dilations
+        )
+        del sampled_data
+
+        self.multirocket = multirocket
+
+        def multirocket_transform(x):
+            x = x.numpy()
+            x_shape = x.shape
+            if len(x_shape) == 2:
+                x = np.reshape(x, (1, x.shape[0], x.shape[1]))
+            transformed_x = multirocket.transform(x)
+
+            if len(x_shape) == 2:
+                transformed_x = transformed_x.values.flatten()
+
+            return transformed_x
+
+        def tf_multirocket_transform(x, y=None):
+            x = tf.py_function(multirocket_transform, [x], tf.float64)
+            if y is None:
+                return x
+            return x, y
+
+        self.classifier = LogisticRegression(
+            num_features=self.num_features,
+            max_epochs=self.max_epochs,
+            save_path=self.save_path
+        )
+        _start_time = time.perf_counter()
+        self.classifier.fit_large(
+            X_train, y_train,
+            X_validation, y_validation,
+            transform_func=tf_multirocket_transform,
+            dim=transformed_data.shape[-1]
+        )
+        train_duration = time.perf_counter() - _start_time
+
+        if self.verbose > 1:
+            print('[{}] Training done!, took {:.3f}s'.format(self.name, train_duration))
+        if predict_on_train:
+            yhat = self.classifier.predict_large(X_train, transform_func=tf_multirocket_transform)
+        else:
+            yhat = None
+
+        self.stats.update({
+            "train_duration": train_duration,
+        })
+
+        return yhat
+
     def predict(self, x):
         if self.verbose > 1:
             print('[{}] Predicting'.format(self.name))
@@ -661,6 +919,41 @@ class MultiRocket:
             return yhat[0][0]
         return yhat
 
+    def predict_large(self, x):
+        if self.verbose > 1:
+            print('[{}] Predicting'.format(self.name))
+
+        def multirocket_transform(xx):
+            xx = xx.numpy()
+            x_shape = xx.shape
+            if len(x_shape) == 2:
+                xx = np.reshape(xx, (1, xx.shape[0], xx.shape[1]))
+            transformed_x = self.multirocket.transform(xx)
+
+            if len(x_shape) == 2:
+                transformed_x = transformed_x.values.flatten()
+
+            return transformed_x
+
+        def tf_multirocket_transform(xx):
+            xx = tf.py_function(multirocket_transform, [xx], tf.float64)
+            return xx
+
+        start_time = time.perf_counter()
+        yhat = self.classifier.predict_large(x, transform_func=tf_multirocket_transform)
+        test_duration = time.perf_counter() - start_time
+
+        if self.verbose > 1:
+            print("[{}] Predicting completed, took {:.3f}s".format(self.name, test_duration))
+
+        self.stats.update({
+            "test_duration": test_duration,
+        })
+
+        if x.shape[0] == 1:
+            return yhat[0][0]
+        return yhat
+
     def save(self):
         if self.classifier_type.lower() == "logistic":
             self.classifier.model.save(self.save_path)
@@ -670,14 +963,30 @@ class MultiRocket:
         file.write(pickle.dumps(self.__dict__))
         file.close()
 
+        if self.multirocket is not None:
+            file = open(self.save_path + "/" + self.name + '.pkl', 'wb')
+            file.write(pickle.dumps(self.multirocket))
+            file.close()
+
     def load(self):
         save_path = self.save_path
-        file = open(save_path + "/model." + self.name + '.pkl', 'rb')
-        data_pickle = file.read()
-        file.close()
+        filename = save_path + "/model." + self.name + '.pkl'
+        if os.path.exists(filename):
+            file = open(filename, 'rb')
+            data_pickle = file.read()
+            file.close()
 
-        self.__dict__ = pickle.loads(data_pickle)
-        # self.n_features_per_kernel = np.int32(self.n_features_per_kernel)
+            self.__dict__ = pickle.loads(data_pickle)
 
-        if self.classifier_type.lower() == "logistic":
-            self.classifier.model = tf.keras.models.load_model(save_path)
+            if self.classifier_type.lower() == "logistic":
+                self.classifier.model = tf.keras.models.load_model(save_path)
+            return
+
+        filename = save_path + "/" + self.name + '.pkl'
+        if os.path.exists(filename):
+            file = open(filename, 'rb')
+            data_pickle = file.read()
+            file.close()
+
+            self.multirocket = pickle.loads(data_pickle)
+

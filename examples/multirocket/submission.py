@@ -8,12 +8,11 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import psutil
 import tensorflow as tf
 
 from multirocket import MultiRocket
 from tools import load_parquets
-
-start_time = time.time()
 
 # SETTINGS
 TRAINED_MODEL_DIR = "./trained_model/"  # Location of input test data
@@ -21,6 +20,7 @@ TEST_DATA_DIR = Path("../../dataset/dummy_test/test/")  # Location of input test
 PREDICTIONS_DIR = "./submission"
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 NUM_CPUS = 4
+RAM_SIZE_THRESHOLD = 16 * 1024 * 1024 * 1024  # 16GB
 
 
 def predict_general_model(data_path, models_dir, num_cpus):
@@ -73,46 +73,73 @@ def predict_patient_specific_model(data_path, models_dir, num_cpus, patients=Non
                 filepath = Path(patient) / session / filename
                 test_files.append(filepath)
                 test_files2.append(data_path / filepath)
+    test_data = pd.DataFrame({"filepath": test_files})
+    test_data["patient"] = test_data["filepath"].map(lambda x: str(x).split("\\")[0])
 
     # LOAD DATA
-    x_test, files = load_parquets(test_files2, y=None, n_sample=-1, num_cpus=num_cpus)
-    files = [str(x).replace(str(data_path)+"\\", "") for x in files]
+    mem = psutil.virtual_memory()
+    print(f"MEM Available: {mem.available}, Threshold: {RAM_SIZE_THRESHOLD}")
 
-    unique_patients = np.unique(patients)
+    if mem.available > RAM_SIZE_THRESHOLD:
+        x_test, files = load_parquets(test_files2, y=None, n_sample=-1, num_cpus=num_cpus)
+        files = [str(x).replace(str(data_path) + "\\", "") for x in files]
 
-    predictions = []
-    for patient in unique_patients:
-        _x_test = []
-        _files = []
-        for i in range(len(files)):
-            if patient in files[i]:
-                _x_test.append(x_test[i])
-                _files.append(files[i])
+        unique_patients = np.unique(test_data["patient"])
 
-        _x_test = np.array(_x_test)
+        predictions = []
+        for patient in unique_patients:
+            _x_test = []
+            _files = []
+            for i in range(len(files)):
+                if patient in files[i]:
+                    _x_test.append(x_test[i])
+                    _files.append(files[i])
 
-        # LOAD MODEL
-        print("Loading models.")
-        model = MultiRocket(
-            classifier="logistic",
-            verbose=2,
-            num_threads=num_cpus,
-            save_path=models_dir + "/" + patient
-        )
-        model.load()
+            _x_test = np.array(_x_test)
 
-        # CREATE PREDICTIONS
-        print("Creating predictions.")
-        prediction = model.predict(_x_test)
+            # LOAD MODEL
+            print("Loading models.")
+            model = MultiRocket(
+                classifier="logistic",
+                verbose=2,
+                num_threads=num_cpus,
+                save_path=models_dir + "/" + patient
+            )
+            model.load()
 
-        predictions.append(pd.DataFrame({
-            "filepath": _files,
-            "prediction": prediction.reshape((-1,))
-        }))
+            # CREATE PREDICTIONS
+            print("Creating predictions.")
+            prediction = model.predict(_x_test)
 
-    predictions = pd.concat(predictions)
+            predictions.append(pd.DataFrame({
+                "filepath": _files,
+                "prediction": prediction.reshape((-1,))
+            }))
 
-    return predictions
+        predictions = pd.concat(predictions)
+
+        return predictions
+    else:
+        predictions = []
+        for patient, group in test_data.groupby("patient"):
+            x_test = group["filepath"].map(lambda x: str(TEST_DATA_DIR / x))
+
+            # LOAD MODEL
+            print("Loading models.")
+            model = MultiRocket(
+                classifier="logistic",
+                verbose=2,
+                num_threads=num_cpus,
+                save_path=models_dir + "/" + patient
+            )
+            model.load()
+            y_pred = model.predict_large(x_test)
+            group["prediction"] = y_pred
+            predictions.append(group[["filepath", "prediction"]])
+
+        predictions = pd.concat(predictions)
+
+        return predictions
 
 
 MAIN_HERE = True
@@ -169,7 +196,13 @@ if __name__ == "__main__":
     if prediction_mode == "general":
         predictions = predict_general_model(data_path=data_path, models_dir=models_dir, num_cpus=num_cpus)
     else:
-        predictions = predict_patient_specific_model(data_path=data_path, models_dir=models_dir, num_cpus=num_cpus)
+        patients = None if prediction_mode == "patient-specific" else prediction_mode.split(",")
+        predictions = predict_patient_specific_model(
+            data_path=data_path,
+            models_dir=models_dir,
+            num_cpus=num_cpus,
+            patients=patients
+        )
 
     # SAVE PREDICTIONS TO A CSV FILE
     print("Saving predictions.")

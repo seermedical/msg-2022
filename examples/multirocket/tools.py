@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 import psutil
@@ -5,26 +7,42 @@ from p_tqdm import p_map
 from scipy import signal
 
 
+def load_data(x) -> np.ndarray:
+    if type(x) is not str:
+        x = x.numpy().decode("utf-8")
+
+    x = pd.read_parquet(x).iloc[:76800]
+    x = x.fillna(0)
+    x = np.transpose(x.values.tolist())
+    x = signal.resample_poly(x, up=64, down=128, axis=-1)
+    f, t, Zxx = signal.stft(x, fs=64, window="hann", nperseg=64 * 10)
+    x = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
+    return x.real
+
+
 def read_data(filepath, y=None):
-    X = pd.read_parquet(filepath)
-
-    X = X.fillna(0)
-    X = X.transpose()
-    X = X.values
-
-    # resample
-    X = signal.resample_poly(X, up=64, down=128, axis=-1)
-    X = signal.resample_poly(X, up=64, down=128, axis=-1)
-    f, t, Zxx = signal.stft(X, fs=64, window="hann", nperseg=64 * 10)
-    Zxx = np.abs(Zxx)
-    X = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
-
+    X = load_data(filepath)
     if y is None:
         return X, filepath
     return X, y, filepath
 
 
-def sample(n, train_files, y):
+def sample(n, train_files, y=None):
+    if y is None:
+        sampled_data = []
+        for patient, group in train_files.groupby("patient"):
+            pos_samples = group[group["label"] == 1]
+            neg_samples = group[group["label"] == 0]
+            randint = np.random.permutation(neg_samples.shape[0])
+            randint = randint[:n]
+
+            neg_samples = neg_samples.iloc[randint]
+
+            sampled_data.extend([pos_samples, neg_samples])
+
+        sampled_data = pd.concat(sampled_data)
+        return sampled_data
+
     pos_y = y[y == 1]
     neg_y = y[y == 0]
     pos_samples = train_files[y == 1]
@@ -96,3 +114,12 @@ def load_parquets(files, y=None, n_sample=-1, num_cpus=-1):
         x = np.array(x)
 
         return x, f
+
+
+def get_data(group, n_sample=-1):
+    # SAMPLING DATA FOR DEMO
+    if n_sample > 0:
+        sample_files = sample(n_sample, train_files=group)
+        return sample_files
+
+    return group
