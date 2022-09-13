@@ -19,7 +19,7 @@ MODELS_DIR = "./trained_model"
 TRAIN_LABELS_FILEPATH = "D:/Dataset/msg_contest_data/train/train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Training version. Optional and purely for logging purposes.
 NUM_CPUS = 4
-RAM_SIZE_THRESHOLD = 320 * 1024 * 1024 * 1024  # 32GB
+RAM_SIZE_THRESHOLD = 32 * 1024 * 1024 * 1024  # 32GB
 
 
 def train_general_model(group, n_sample=-1, num_cpus=-1):
