@@ -7,12 +7,13 @@ import pandas as pd
 import numpy as np
 from argparse import ArgumentParser
 import tensorflow as tf
+from tensorflow.python.ops.numpy_ops import np_config
 from sklearn.model_selection import train_test_split
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 from minirocket import train_rocket, train_classifier
 import scipy.signal
 
-BATCH_SIZE = 16
+BATCH_SIZE = 64
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
@@ -25,13 +26,14 @@ def load_parquet(x) -> np.ndarray:
     if type(x) is not str:
         x = x.numpy().decode("utf-8")
 
-    x = pd.read_parquet(x).iloc[:76800]
+    x = pd.read_parquet(x, engine="pyarrow").iloc[:76800]
     x = x.fillna(0)
     x = np.transpose(x.values.tolist())
     # x = scipy.signal.resample(x, 128)
-    x = scipy.signal.resample_poly(x, up=64, down=128, axis=-1)
-    f, t, Zxx = scipy.signal.stft(x, fs=64, window="hann", nperseg=64 * 10)
+    # x = scipy.signal.resample_poly(x, up=64, down=128, axis=-1)
+    f, t, Zxx = scipy.signal.stft(x, fs=128, window="hann", nperseg=64 * 10)
     x = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
+    # return x.real[np.arange(0, 330, 10)]
     return x.real
 
 
@@ -163,8 +165,8 @@ def train_model(
         x = tf.py_function(minirocket_transform, [x], tf.float64)
         return x, y
 
-    train_cache_file = "train.cache"
-    validation_cache_file = "validation.cache"
+    train_cache_file = "cached_data/train.cache"
+    validation_cache_file = "cached_data/validation.cache"
     for f in glob.glob(train_cache_file + "*"):
         os.remove(f)
 
@@ -271,7 +273,7 @@ def train_general_model(data_path, save_path):
         y_train,
         X_validation,
         y_validation,
-        max_dilations=32,
+        max_dilations=64,
         kernel_num=10000,
         epochs=300,
     )
@@ -329,7 +331,7 @@ def train_patient_specific(data_path, save_path):
             X_validation,
             y_validation,
             max_dilations=32,
-            kernel_num=10000,
+            kernel_num=1000,
             epochs=300,
             batch_size=batch_size,
         )

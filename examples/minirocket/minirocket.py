@@ -2,7 +2,8 @@
 import pickle
 from typing import Union
 import numpy as np
-from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
+from sktime.transformations.panel.rocket import MiniRocketMultivariate
+# from minirocket_multivariate import MiniRocketMultivariate
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, BatchNormalization
 from tensorflow.keras.models import Model
@@ -25,15 +26,8 @@ np.random.seed(SEED)
 
 def train_rocket(
     x, kernel_num: int = 10000, max_dilations: int = 32
-) -> (np.ndarray, Union[MiniRocket, MiniRocketMultivariate]):
-    if x.shape[1] == 1:
-        rocket = MiniRocket(
-            kernel_num, max_dilations_per_kernel=max_dilations, random_state=SEED
-        )
-    else:
-        rocket = MiniRocketMultivariate(
-            kernel_num, max_dilations_per_kernel=max_dilations, random_state=SEED
-        )
+) -> (np.ndarray, MiniRocketMultivariate):
+    rocket = MiniRocketMultivariate(kernel_num, max_dilations_per_kernel=max_dilations, random_state=SEED)
     X_train_transform = rocket.fit_transform(x)
 
     return X_train_transform, rocket
