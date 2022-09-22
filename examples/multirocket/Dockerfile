@@ -16,7 +16,7 @@ WORKDIR /app
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
 COPY trained_model /trained_model
-COPY submission.py train_model.py multirocket.py ./
+COPY submission.py train_model.py multirocket.py logistic_regression.py tools.py ./
 
 # SPECIFY THE ENTRYPOINT SCRIPT
 CMD ["python", "-u", "submission.py"]

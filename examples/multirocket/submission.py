@@ -15,9 +15,9 @@ from multirocket import MultiRocket
 from tools import load_parquets
 
 # SETTINGS
-TRAINED_MODEL_DIR = "./trained_model/"  # Location of input test data
-TEST_DATA_DIR = Path("../../dataset/dummy_test/test/")  # Location of input test data
-PREDICTIONS_DIR = "./submission"
+TRAINED_MODEL_DIR = "/trained_model/"  # Location of input test data
+TEST_DATA_DIR = Path("/dataset/test/")  # Location of input test data
+PREDICTIONS_DIR = "/submission/"
 VERSION = "v0.1.0"  # Submission version. Optional and purely for logging purposes.
 NUM_CPUS = 4
 RAM_SIZE_THRESHOLD = 16 * 1024 * 1024 * 1024  # 16GB
@@ -90,14 +90,16 @@ def predict_patient_specific_model(data_path, models_dir, num_cpus, patients=Non
     print("Getting list of files to run predictions on.")
     test_files = []
     test_files2 = []
+    patient_list = []
     for patient in patients:
         for session in os.listdir(data_path / patient):
             for filename in os.listdir(data_path / patient / session):
                 filepath = Path(patient) / session / filename
                 test_files.append(filepath)
                 test_files2.append(data_path / filepath)
+                patient_list.append(patient)
     test_data = pd.DataFrame({"filepath": test_files})
-    test_data["patient"] = test_data["filepath"].map(lambda x: str(x).split("\\")[0])
+    test_data["patient"] = patient_list
 
     # LOAD DATA
     mem = psutil.virtual_memory()
@@ -146,7 +148,7 @@ def predict_patient_specific_model(data_path, models_dir, num_cpus, patients=Non
         predictions = []
         for patient, group in test_data.groupby("patient"):
             x_test = group["filepath"].map(lambda x: str(data_path / x))
-
+            print(models_dir + "/" + patient)
             # LOAD MODEL
             print("Loading models.")
             model = MultiRocket(
@@ -180,7 +182,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--prediction-mode",
         type=str,
-        default="2002",  # 1110,1869,1876,1904,1965,2002, patient-specific, general
+        default="general",  # 1110,1869,1876,1904,1965,2002, patient-specific, general
         required=False,
     )
     arg_parser.add_argument(
@@ -204,11 +206,13 @@ if __name__ == "__main__":
     n_sample = args.sample
     prediction_mode = args.prediction_mode
 
-    PREDICTIONS_FILEPATH = f"{predictions_path}/submission.csv"  # Output file.
 
-    if not os.path.exists(predictions_path):
-        os.makedirs(predictions_path)
 
+    # if not os.path.exists(predictions_path):
+    #     os.makedirs(predictions_path)
+
+    print(f"{os.getcwd()}")
+    print(os.listdir("."))
     # DEBUGGING INFO
     print(f"Submission version {VERSION}")
     # print(f"GPU available:   {torch.cuda.is_available()}")  # Use this if using pytorch
@@ -218,6 +222,11 @@ if __name__ == "__main__":
 
     if prediction_mode == "general":
         predictions = predict_general_model(data_path=data_path, models_dir=models_dir, num_cpus=num_cpus)
+
+        # SAVE PREDICTIONS TO A CSV FILE
+        print("Saving predictions.")
+        PREDICTIONS_FILEPATH = f"{predictions_path}/submission.csv"  # Output file.
+        predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
     else:
         patients = None if prediction_mode == "patient-specific" else prediction_mode.split(",")
         predictions = predict_patient_specific_model(
@@ -227,9 +236,11 @@ if __name__ == "__main__":
             patients=patients
         )
 
-    # SAVE PREDICTIONS TO A CSV FILE
-    print("Saving predictions.")
-    predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+        # SAVE PREDICTIONS TO A CSV FILE
+        print("Saving predictions.")
+        PREDICTIONS_FILEPATH = f"{predictions_path}/submission_patient_specific.csv"  # Output file.
+        predictions.to_csv(PREDICTIONS_FILEPATH, index=False)
+
 
     duration = time.perf_counter() - start_time
 

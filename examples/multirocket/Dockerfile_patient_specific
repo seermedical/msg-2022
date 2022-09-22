@@ -15,8 +15,8 @@ WORKDIR /app
 
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
-COPY trained_model_patient_specific /trained_model
-COPY submission_patient_specific.py train_model.py multirocket.py ./
+COPY trained_model /trained_model
+COPY submission.py train_model.py multirocket.py logistic_regression.py tools.py ./
 
 # SPECIFY THE ENTRYPOINT SCRIPT
-CMD ["python", "-u", "submission_patient_specific.py"]
+CMD ["python", "-u", "submission.py", "--prediction-mode", "patient-specific"]

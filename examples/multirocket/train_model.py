@@ -14,12 +14,12 @@ from multirocket import MultiRocket
 from tools import load_parquets, get_data
 
 # SETTINGS
-DATA_DIR = "D:/Dataset/msg_contest_data/train"  # Location of input train dataset
-MODELS_DIR = "./trained_model"
-TRAIN_LABELS_FILEPATH = "D:/Dataset/msg_contest_data/train/train_labels.csv"  # Output file.
+DATA_DIR = "/dataset/train/"  # Location of input train dataset D:/Dataset/msg_contest_data/train
+MODELS_DIR = "/trained_model/"
+TRAIN_LABELS_FILEPATH = f"{DATA_DIR}train_labels.csv"  # Output file.
 VERSION = "v0.1.0"  # Training version. Optional and purely for logging purposes.
 NUM_CPUS = 4
-RAM_SIZE_THRESHOLD = 32 * 1024 * 1024 * 1024  # 32GB
+RAM_SIZE_THRESHOLD = 3200 * 1024 * 1024 * 1024  # 32GB
 
 
 def train_general_model(group, n_sample=-1, num_cpus=-1):
