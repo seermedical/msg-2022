@@ -1,7 +1,7 @@
 # My Seizure Gauge Forecasting Challenge 2022
 
 - Sign up for competition
-- Data
+- Data [[See instructional video](https://drive.google.com/file/d/1Er4xBvZnZgtM_1ARyQ4gfCB6BVtdki5k/view)]
   - [Get training data](get_data.md)
   - [Expected Directory Structure](directory_structure.md)
 - Training
@@ -18,3 +18,4 @@
       - [Dockerfile Tips](submission/dockerfile_tips.md)
   4. [Test docker container locally](submission/run_locally.md) (Strongly Recomended)
   5. [Submit](submission/submit.md)
+
