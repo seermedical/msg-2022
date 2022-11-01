@@ -20,24 +20,20 @@ path_to
         test
             1110
                 000
-                    UTC-2020_12_06-21_00_00.parquet
-                    UTC-2020_12_06-21_10_00.parquet
-                    UTC-2020_12_06-21_20_00.parquet
+                    UTC-2020_02_26-23_10_00.parquet
                 001
-                    UTC-2020_12_07-03_00_00.parquet
-                    UTC-2020_12_07-03_10_00.parquet
+                    UTC-2020_02_27-17_30_00.parquet
+                    UTC-2020_02_27-17_40_00.parquet
             1869
-                002
-                    UTC-2020_12_08-03_00_00.parquet
-                    UTC-2020_12_08-03_10_00.parquet
-            1876
                 000
-                    UTC-2020_12_08-03_50_00.parquet
-                    UTC-2020_12_08-04_00_00.parquet
-                003
-                    UTC-2020_12_09-03_30_00.parquet
-                    UTC-2020_12_09-03_40_00.parquet
-                    UTC-2020_12_09-03_50_00.parquet
+                    UTC-2019_11_11-16_50_00.parquet
+                    UTC-2019_11_11-17_00_00.parquet
+                001
+                    UTC-2019_11_12-16_00_00.parquet
+                    UTC-2019_11_12-16_10_00.parquet
+            1876
+            ...
+            ...
 ```
 
 
@@ -51,7 +47,7 @@ path_to
 # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths.
 #       `$(pwd)`  will evaluate to an absolute path of the working directory
 #       on a linux computer.
-LOCAL_DATA_DIR="$(pwd)/dummy_test"
+LOCAL_DATA_DIR="$(pwd)/data/dummy_test"
 LOCAL_PREDICTIONS_DIR="$(pwd)/submission"
 
 # ========================
