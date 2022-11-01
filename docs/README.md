@@ -10,7 +10,7 @@
   - Training
   - Evaluating
 
-- Prepare code for submission
+- Prepare code for submission [[See instructional video](https://drive.google.com/file/d/1hEBGSeBxeZFrnLshuTyWMqCBczp8swts/view)]
   1. [Create code that generates predictions](submission/create_code.md)
       - Notes: [Input data for docker container](submission/inputs.md)
       - Notes: [Required outputs](submission/outputs.md)
