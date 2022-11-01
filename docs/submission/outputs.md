@@ -1,7 +1,7 @@
 # Docker Submission - Required Outputs
 
 - [Go back to Main](../README.md)
-- [Go back to Submission](submission.md)
+- [Go back to Submission Code](create_code.md)
 
 
 Your application should generate predictions, and save them as a `csv` file.

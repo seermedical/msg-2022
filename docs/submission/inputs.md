@@ -1,10 +1,14 @@
 # Docker Submission - Inputs
 
 - [Go back to Main](../README.md)
-- [Go back to Submission](submission.md)
+- [Go back to Submission Code](create_code.md)
 
 
-Your application must load data from the `/dataset/test`  directory in the docker container.
+The predictions script *must* load data from the `/dataset/test`  directory in the docker container.
+
+**Note:** `/dataset` is an absolute directory path, mounted on the root directory. It is *not* a path relative to the current working directory.
+
+
 
 The data is stored as separate files with the following directory structure:
 
@@ -15,8 +19,24 @@ The data is stored as separate files with the following directory structure:
             SSS
                 UTC-YYYY_MM_DD-hh_mm_ss.parquet
                 UTC-YYYY_MM_DD-hh_mm_ss.parquet
+                ...
             SSS
                 UTC-YYYY_MM_DD-hh_mm_ss.parquet
+                ...
+            ...
+        NNNN
+            SSS
+                UTC-YYYY_MM_DD-hh_mm_ss.parquet
+                UTC-YYYY_MM_DD-hh_mm_ss.parquet
+                ...
+            SSS
+                UTC-YYYY_MM_DD-hh_mm_ss.parquet
+                ...
+            ...
+        ...
+        ...
+        ...
+
 
 # --------------------------------------------------------------
 # KEYS

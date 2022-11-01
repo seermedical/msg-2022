@@ -10,12 +10,17 @@
   - Training
   - Evaluating
 
-- [Steps for Submitting](submission/submission.md)
-  1. [Input data for docker container](submission/inputs.md)
-  2. [Required outputs](submission/outputs.md)
-  3. [Create Docker Image](submission/create_docker.md)
-      - [Compatibility and Computational Limitations](submission/compatibility.md)
-      - [Dockerfile Tips](submission/dockerfile_tips.md)
-  4. [Test docker container locally](submission/run_locally.md) (Strongly Recomended)
-  5. [Submit](submission/submit.md)
+- Prepare code for submission
+  1. [Create code that generates predictions](submission/create_code.md)
+      - Notes: [Input data for docker container](submission/inputs.md)
+      - Notes: [Required outputs](submission/outputs.md)
+      - Notes: [Computational restrictions](submission/restrictions.md)
+  2. [Create Docker Image](submission/create_docker.md)
+      - Notes: [Compatibility issues](submission/compatibility.md)
+      - Notes: [Dockerfile Tips](submission/dockerfile_tips.md)
+  3. [Test docker container locally](submission/run_locally.md) (Strongly Recomended)
+
+- Make Submision
+  1. [Setup Eval.ai CLI](submission/prepare.md)
+  2. [Make Submision](submission/submit.md)
 

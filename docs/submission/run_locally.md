@@ -1,7 +1,6 @@
 # Docker Submission - Test it Locally
 
 - [Go back to Main](../README.md)
-- [Go back to Submission](submission.md)
 
 
 It is **strongly recomended** that you test run your docker container before making a submission. This will allow you catch any potential bugs you may have in your code.
@@ -45,7 +44,7 @@ path_to
 # ========================
 # Change this one to point to where your `dummy_data` directory is stored.
 # NOTE: `LOCAL_DATA_DIR` and `LOCAL_PREDICTIONS_DIR` must be an absolute paths.
-#       `$(pwd)`  will evaluate to an absolute path of the working directory
+# NOTE: `$(pwd)`  will evaluate to an absolute path of the working directory
 #       on a linux computer.
 LOCAL_DATA_DIR="$(pwd)/data/dummy_test"
 LOCAL_PREDICTIONS_DIR="$(pwd)/submission"
@@ -73,20 +72,32 @@ docker run --rm\
 
 - If the docker container ran correctly, there should be a `./submission/submission.csv` file saved relative to your working directory.
 - Open up the `submission/submission.csv` file and ensure it is structured correctly.
-- It should contain 12 rows of predictions, and look something like this:
+- It should contain 23 rows of predictions, and look something like this:
 
 ```
 filepath,prediction
-1110/000/UTC-2020_12_06-21_00_00.parquet,0.417022004702574
-1110/000/UTC-2020_12_06-21_10_00.parquet,0.7203244934421581
-1110/000/UTC-2020_12_06-21_20_00.parquet,0.00011437481734488664
-1110/001/UTC-2020_12_07-03_00_00.parquet,0.30233257263183977
-1110/001/UTC-2020_12_07-03_10_00.parquet,0.14675589081711304
-1869/002/UTC-2020_12_08-03_00_00.parquet,0.0923385947687978
-1869/002/UTC-2020_12_08-03_10_00.parquet,0.1862602113776709
-1876/000/UTC-2020_12_08-03_50_00.parquet,0.34556072704304774
-1876/000/UTC-2020_12_08-04_00_00.parquet,0.39676747423066994
-1876/003/UTC-2020_12_09-03_30_00.parquet,0.538816734003357
-1876/003/UTC-2020_12_09-03_40_00.parquet,0.4191945144032948
-1876/003/UTC-2020_12_09-03_50_00.parquet,0.6852195003967595
+filepath,prediction
+2002/000/UTC-2020_12_06-21_20_00.parquet,0.417022004702574
+2002/000/UTC-2020_12_06-21_10_00.parquet,0.7203244934421581
+2002/001/UTC-2020_12_07-03_50_00.parquet,0.00011437481734488664
+2002/001/UTC-2020_12_07-03_40_00.parquet,0.30233257263183977
+1869/000/UTC-2019_11_11-16_50_00.parquet,0.14675589081711304
+1869/000/UTC-2019_11_11-17_00_00.parquet,0.0923385947687978
+1869/001/UTC-2019_11_12-16_00_00.parquet,0.1862602113776709
+1869/001/UTC-2019_11_12-16_10_00.parquet,0.34556072704304774
+1965/000/UTC-2020_08_24-15_10_00.parquet,0.39676747423066994
+1965/000/UTC-2020_08_24-15_00_00.parquet,0.538816734003357
+1965/001/UTC-2020_08_24-15_40_00.parquet,0.4191945144032948
+1965/001/UTC-2020_08_24-15_30_00.parquet,0.6852195003967595
+1110/000/UTC-2020_02_26-23_10_00.parquet,0.20445224973151743
+1110/001/UTC-2020_02_27-17_40_00.parquet,0.8781174363909454
+1110/001/UTC-2020_02_27-17_30_00.parquet,0.027387593197926163
+1904/002/UTC-2020_03_25-16_30_00.parquet,0.6704675101784022
+1904/002/UTC-2020_03_25-16_20_00.parquet,0.41730480236712697
+1904/001/UTC-2020_03_22-16_10_00.parquet,0.5586898284457517
+1904/001/UTC-2020_03_22-16_00_00.parquet,0.14038693859523377
+1876/000/UTC-2019_12_19-20_30_00.parquet,0.1981014890848788
+1876/000/UTC-2019_12_19-20_20_00.parquet,0.8007445686755367
+1876/001/UTC-2019_12_19-21_30_00.parquet,0.9682615757193975
+1876/001/UTC-2019_12_19-21_40_00.parquet,0.31342417815924284
 ```

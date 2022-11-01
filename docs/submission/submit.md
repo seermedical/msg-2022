@@ -1,24 +1,9 @@
 # Docker Submission - Submit
 
 - [Go back to Main](../README.md)
-- [Go back to Submission](submission.md)
 
-## 1. Preparation
 
-1. Sign up for [the competition on Eval AI](https://eval.ai/web/challenges/challenge-page/1693/overview).
-2. Install evalai cli tool
-
-    ```bash
-    pip install evalai
-    ```
-
-3. Set your eval AI authentication token on the cli tool. You can get the token by going to your [eval.ai profile](https://eval.ai/web/profile)
-
-    ```bash
-    evalai set_token XXXXXXXXXXXX
-    ```
-
-## 2. Make the actual submission
+## Make a Submission
 
 Make sure you substitute `evalai-submission:latest` with the actual docker image name and tag you built.
 
