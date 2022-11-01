@@ -22,7 +22,7 @@ path_to_file,probability
 ...
 ```
 
-- The `path_to_file` value should be the path of the input file, relative to the data split directory (eg `train`, `valid`, `test` directory).
+- The `path_to_file` value should be the path of the input file, relative to the `test` data split directory.
 - The `probability` value must be a probability value, between `0` and `1` (inclusively).
 
 

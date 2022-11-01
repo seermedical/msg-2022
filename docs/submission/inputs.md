@@ -6,7 +6,7 @@
 
 The predictions script *must* load data from the `/dataset/test`  directory in the docker container.
 
-**Note:** `/dataset` is an absolute directory path, mounted on the root directory. It is *not* a path relative to the current working directory.
+**Note:** `/dataset` is an absolute directory path, mounted on the root directory of the computer. It is *not* a path relative to the current working directory.
 
 
 
