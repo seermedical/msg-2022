@@ -43,7 +43,7 @@ RUN apt-get update &&\
 
 # ADITIONAL PYTHON DEPENDENCIES (if you have them)
 COPY requirements_prod.txt ./
-RUN pip install -r requirements_prod.txt
+RUN python -m pip install --no-cache-dir -r requirements_prod.txt
 
 
 # ##############################################################################
