@@ -4,7 +4,7 @@
 
 ## Download Training Data
 
-**Note**, the data is quite large. In total it is about `131 GB` when compressed  (`170+ GB` uncompressed)
+**Note**, the data is quite large. In total it is about `131 GB` when compressed  (`200 GB` uncompressed)
 
 You can either download and extract the data manually, or use commands in the terminal to automate this process.
 
@@ -14,13 +14,13 @@ You can either download and extract the data manually, or use commands in the te
 The training data can be downloaded using the following links. You can download them locally and unzip them into a `train` subdirectory.
 
 
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip) (`20.3 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip) (`16.6 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip) (`20.4 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip) (`32.7 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip) (`29.3 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip) (`12.2 GB`)
-- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels.csv](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels.csv) (`5.3 MB`)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1110_train.zip) `20.3 GB` (`31.2 GB` unzipped )
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1869_train.zip) `16.6 GB` (`26.2 GB` unzipped)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1876_train.zip) `20.4 GB` (`30.7 GB` unzipped)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1904_train.zip) `32.7 GB` (`50.1 GB` unzipped)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/1965_train.zip) `29.3 GB` (`43 GB` unzipped)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/2002_train.zip) `12.2 GB` (`18.9 GB` unzipped)
+- [https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels.csv](https://eval-ai-msg-data.s3.ap-southeast-2.amazonaws.com/train_labels.csv) `5.3 MB`
 
 
 ### Option 2. Use Terminal Commands
