@@ -20,7 +20,7 @@
       - Notes: [Dockerfile Tips](submission/dockerfile_tips.md)
   3. [Test docker container locally](submission/run_locally.md) (Strongly Recomended)
 
-- Make Submision
+- Make Submision [[See instructional video](https://drive.google.com/file/d/18M4mD56DDFhxGt20WVD8zG2AE6OhUX4Y/view?usp=sharing)]
   1. [Setup Eval.ai CLI](submission/prepare.md)
   2. [Make Submision](submission/submit.md)
 
