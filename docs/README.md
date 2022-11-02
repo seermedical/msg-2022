@@ -7,8 +7,8 @@
 - Training
   - Set up local environment
   - Load data
-  - Training
-  - Evaluating
+  - Train your model using prefered machine learning library
+  - [Evaluate performance](train/evaluate.md)
 
 - Prepare code for submission [[See instructional video](https://drive.google.com/file/d/1hEBGSeBxeZFrnLshuTyWMqCBczp8swts/view)]
   1. [Create code that generates predictions](submission/create_code.md)
