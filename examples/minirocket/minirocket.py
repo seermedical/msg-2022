@@ -71,6 +71,10 @@ def train_classifier(
 
     metrics = [
         AUC(
+            num_thresholds=10000,
+            name="auc",
+        ),
+        AUC(
             curve="PR",
             num_thresholds=10000,
             name="auprc",
@@ -83,7 +87,7 @@ def train_classifier(
         PrecisionAtRecall(0.8, name="prec", num_thresholds=10000),
         SpecificityAtSensitivity(0.8, name="specs", num_thresholds=10000),
     ]
-    monitor = "val_auprc"
+    monitor = "val_auc"
 
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
