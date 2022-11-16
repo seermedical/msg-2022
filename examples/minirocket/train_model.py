@@ -8,7 +8,7 @@ import numpy as np
 from argparse import ArgumentParser
 import tensorflow as tf
 from tensorflow.python.ops.numpy_ops import np_config
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 from minirocket import train_rocket, train_classifier
 import scipy.signal
@@ -54,13 +54,13 @@ def create_dataset(
     cache: Union[bool, str] = False,
     transform_func=None,
 ) -> tf.data.Dataset:
-    dataset = tf.data.Dataset.from_tensor_slices((x_data, y_data))
+    dataset = tf.data.Dataset.from_tensor_slices((({"filepath": x_data["filepath"], "patient": x_data["patient"]}), y_data))
 
     if oversampling:
         dataset_choices = []
         for i in range(2):
             dt = dataset.filter(lambda x, y: tf.equal(y, i)).map(
-                lambda x, y: (tf_load_parquet(x), y),
+                lambda x, y: (tf_load_parquet(x["filepath"]), y),
                 num_parallel_calls=tf.data.AUTOTUNE,
             )
 
@@ -86,7 +86,7 @@ def create_dataset(
         dataset = tf.data.Dataset.sample_from_datasets(dataset_choices, [0.5, 0.5])
     else:
         dataset = dataset.map(
-            lambda x, y: (tf_load_parquet(x), y), num_parallel_calls=tf.data.AUTOTUNE
+            lambda x, y: (tf_load_parquet(x["filepath"]), y), num_parallel_calls=tf.data.AUTOTUNE
         )
         if transform_func:
             dataset = dataset.map(
@@ -125,20 +125,21 @@ def train_model(
     y_train: Union[pd.Series, np.ndarray],
     X_validation: Union[pd.Series, np.ndarray],
     y_validation: Union[pd.Series, np.ndarray],
+
     kernel_num: int = 5000,
     max_dilations: int = 32,
     epochs: int = 100,
     batch_size=BATCH_SIZE,
 ) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
     print("Fitting minirocket")
-    pos_samples = X_train[y_train == 1]
+    pos_samples = X_train.iloc[np.where(y_train == 1)]
     pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
 
-    neg_samples = X_train[y_train == 0]
+    neg_samples = X_train.iloc[np.where(y_train == 0)]
     neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
 
-    pos_samples = np.array([load_parquet(i) for i in pos_samples])
-    neg_samples = np.array([load_parquet(i) for i in neg_samples])
+    pos_samples = np.array([load_parquet(i) for i in pos_samples["filepath"]])
+    neg_samples = np.array([load_parquet(i) for i in neg_samples["filepath"]])
 
     sampled_data = np.vstack([pos_samples, neg_samples])
 
@@ -165,8 +166,8 @@ def train_model(
         x = tf.py_function(minirocket_transform, [x], tf.float64)
         return x, y
 
-    train_cache_file = "cached_data/train.cache"
-    validation_cache_file = "cached_data/validation.cache"
+    train_cache_file = "/tmp/train.cache"
+    validation_cache_file = "/tmp/validation.cache"
     for f in glob.glob(train_cache_file + "*"):
         os.remove(f)
 
@@ -183,7 +184,7 @@ def train_model(
             shuffle_size=100,
             repeat=True,
             oversampling=True,
-            cache=train_cache_file,
+            cache=True,
             transform_func=tf_minirocket_transform,
         )
         # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
@@ -198,7 +199,7 @@ def train_model(
             drop_remainder=False,
             shuffle=False,
             repeat=False,
-            cache=validation_cache_file,
+            cache=True,
             transform_func=tf_minirocket_transform,
         )
         # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
@@ -219,39 +220,46 @@ def train_model(
 def train_general_model(data_path, save_path):
     train_labels = pd.read_csv(os.path.join(data_path, "train_labels.csv"))
     train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(data_path, x)
     )
+    patient_num = train_labels["patient"].nunique()
+    patients = train_labels["patient"].unique().tolist()
+    print(f"#Patients: {patient_num}")
+    print(f"Patients: {patients}")
+    train_labels["patient"] = train_labels["patient"].map(
+        lambda x: patients.index(x)
+    )
 
     # SAMPLING DATA FOR DEMO
-    sampled_data = []
-    for patient, group in train_labels.groupby("patient"):
-        pos_samples = group[group["label"] == 1]
-
-        neg_samples = group[group["label"] == 0]
-        neg_samples = neg_samples.sample(
-            int(neg_samples.shape[0] / 2), random_state=SEED
-        )
-
-        sampled_data.extend([pos_samples, neg_samples])
-
-    sampled_data = pd.concat(sampled_data)
-
+    # sampled_data = []
     X_train = []
     X_validation = []
     y_train = []
     y_validation = []
-    for patient, group in sampled_data.groupby("patient"):
-        _x_train, _x_validation, _y_train, _y_validation = train_test_split(
-            group["filepath"],
-            group["label"],
-            test_size=0.2,
-            random_state=SEED,
-        )
-        X_train.append(_x_train)
-        X_validation.append(_x_validation)
-        y_train.append(_y_train)
-        y_validation.append(_y_validation)
+    for patient, group in train_labels.groupby("patient"):
+        train_sessions = []
+        val_sessions = []
+
+        preictal_sessions = group[group["label"] == 1]["session"].unique()
+        ictal_sessions = list(set(group[group["label"] == 0]["session"].unique()) - set(preictal_sessions))
+
+        idx = int(len(preictal_sessions) * 0.8)
+        train_sessions.extend(preictal_sessions[:idx])
+        val_sessions.extend(preictal_sessions[idx:])
+
+        idx = int(len(ictal_sessions) * 0.8)
+        train_sessions.extend(ictal_sessions[:idx])
+        val_sessions.extend(ictal_sessions[idx:])
+
+        train_sessions = group[group["session"].isin(train_sessions)]
+        val_sessions = group[group["session"].isin(val_sessions)]
+
+        X_train.append(train_sessions[["filepath", "patient"]])
+        X_validation.append(val_sessions[["filepath", "patient"]])
+        y_train.append(train_sessions["label"])
+        y_validation.append(val_sessions["label"])
 
     X_train = pd.concat(X_train)
     X_validation = pd.concat(X_validation)
@@ -289,10 +297,10 @@ def train_general_model(data_path, save_path):
 def train_patient_specific(data_path, save_path):
     train_labels = pd.read_csv(os.path.join(data_path, "train_labels.csv"))
     train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(data_path, x)
     )
-
     # SAMPLING DATA FOR DEMO
     sampled_data = []
     for patient, group in train_labels.groupby("patient"):
@@ -308,13 +316,28 @@ def train_patient_specific(data_path, save_path):
     sampled_data = pd.concat(sampled_data)
 
     for patient, group in sampled_data.groupby("patient"):
-        X_train, X_validation, y_train, y_validation = train_test_split(
-            group["filepath"],
-            group["label"],
-            test_size=0.2,
-            random_state=SEED,
-        )
-        # Count samples in each class
+        train_sessions = []
+        val_sessions = []
+
+        preictal_sessions = group[group["label"] == 1]["session"].unique()
+        ictal_sessions = list(set(group[group["label"] == 0]["session"].unique()) - set(preictal_sessions))
+
+        idx = int(len(preictal_sessions) * 0.8)
+        train_sessions.extend(preictal_sessions[:idx])
+        val_sessions.extend(preictal_sessions[idx:])
+
+        idx = int(len(ictal_sessions) * 0.8)
+        train_sessions.extend(ictal_sessions[:idx])
+        val_sessions.extend(ictal_sessions[idx:])
+
+        train_sessions = group[group["session"].isin(train_sessions)]
+        val_sessions = group[group["session"].isin(val_sessions)]
+
+        X_train = train_sessions[["filepath", "patient"]]
+        X_validation = val_sessions[["filepath", "patient"]]
+        y_train = train_sessions["label"]
+        y_validation = val_sessions["label"]
+
         print("# samples in each class in the train set")
         print(np.unique(y_train, return_counts=True))
 
@@ -331,7 +354,7 @@ def train_patient_specific(data_path, save_path):
             X_validation,
             y_validation,
             max_dilations=32,
-            kernel_num=1000,
+            kernel_num=5000,
             epochs=300,
             batch_size=batch_size,
         )
