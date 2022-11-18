@@ -144,7 +144,7 @@ def train_model(
 
     lr_model = train_classifier(
         class_num=2,
-        dims=X_train.shape[-1],
+        dims=9996,
         train_data=train_dataset,
         train_steps=2 * int(X_train.shape[0] / batch_size),
         validation_data=validation_dataset,
@@ -313,7 +313,7 @@ if __name__ == "__main__":
     train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
 
     train_labels["filepath"] = train_labels["filepath"].map(
-        lambda x: os.path.join(preprocessed_path, x.split("/")[-1])
+        lambda x: os.path.join(preprocessed_path, x.split("/")[-1].split(".")[0] + ".bin")
     )
 
     if training_mode == "general":
