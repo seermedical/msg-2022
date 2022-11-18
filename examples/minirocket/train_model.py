@@ -150,7 +150,7 @@ def train_model(
         validation_data=validation_dataset,
         epochs=epochs,
     )
-    return lr_model, minirocket
+    return lr_model
 
 
 def train_general_model(data_path, save_path, train_labels):
@@ -204,7 +204,7 @@ def train_general_model(data_path, save_path, train_labels):
 
     ###
     print("Training model")
-    lr_model, minirocket = train_model(
+    lr_model = train_model(
         X_train,
         y_train,
         X_validation,
@@ -217,9 +217,6 @@ def train_general_model(data_path, save_path, train_labels):
         os.makedirs(save_path)
 
     lr_model.save(save_path)
-
-    with open(os.path.join(save_path, "minirocket.pkl"), "w+b") as f:
-        pickle.dump(minirocket, f)
 
 
 def train_patient_specific(data_path, save_path, train_labels):
@@ -256,7 +253,7 @@ def train_patient_specific(data_path, save_path, train_labels):
         batch_size = np.min([BATCH_SIZE, y_train[y_train == 1].shape[0]])
         ###
         print("Training model")
-        lr_model, minirocket = train_model(
+        lr_model = train_model(
             X_train,
             y_train,
             X_validation,
@@ -271,9 +268,6 @@ def train_patient_specific(data_path, save_path, train_labels):
             os.makedirs(patient_model_save_path)
 
         lr_model.save(patient_model_save_path)
-
-        with open(os.path.join(patient_model_save_path, "minirocket.pkl"), "w+b") as f:
-            pickle.dump(minirocket, f)
 
 
 if __name__ == "__main__":
@@ -313,7 +307,7 @@ if __name__ == "__main__":
     train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
 
     train_labels["filepath"] = train_labels["filepath"].map(
-        lambda x: os.path.join(preprocessed_path, x.split("/")[-1].split(".")[0] + ".bin")
+        lambda x: os.path.join(preprocessed_path, os.path.join(**x.split("/")[:-1]), x.split("/")[-1].split(".")[0] + ".bin")
     )
 
     if training_mode == "general":
