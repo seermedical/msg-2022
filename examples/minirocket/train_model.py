@@ -144,7 +144,7 @@ def train_model(
 
     lr_model = train_classifier(
         class_num=2,
-        dims=transformed_data.shape[-1],
+        dims=X_train.shape[-1],
         train_data=train_dataset,
         train_steps=2 * int(X_train.shape[0] / batch_size),
         validation_data=validation_dataset,
@@ -285,7 +285,7 @@ if __name__ == "__main__":
         "--preprocessed-path", type=str, default="/dataset/preprocessed/", required=False
     )
     arg_parser.add_argument(
-        "--train_label", type=str, default="/dataset/train_labels", required=False
+        "--train-label", type=str, default="/dataset/train_labels", required=False
     )
     arg_parser.add_argument(
         "--save-path", type=str, default="/trained_model", required=False
