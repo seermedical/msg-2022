@@ -10,7 +10,7 @@ import tensorflow as tf
 from tensorflow.python.ops.numpy_ops import np_config
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
-from minirocket import train_rocket, train_classifier
+from classifier import train_classifier
 import scipy.signal
 
 BATCH_SIZE = 64
@@ -22,23 +22,10 @@ TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
 # TRAIN_DATA_DIR = Path("/home/dnhu0002/workspace/data/msg/train")  # Location of input test data
 
 
-def load_parquet(x) -> np.ndarray:
-    if type(x) is not str:
-        x = x.numpy().decode("utf-8")
-
-    x = pd.read_parquet(x, engine="pyarrow").iloc[:76800]
-    x = x.fillna(0)
-    x = np.transpose(x.values.tolist())
-    # x = scipy.signal.resample(x, 128)
-    # x = scipy.signal.resample_poly(x, up=64, down=128, axis=-1)
-    f, t, Zxx = scipy.signal.stft(x, fs=128, window="hann", nperseg=64 * 10)
-    x = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
-    # return x.real[np.arange(0, 330, 10)]
-    return x.real
-
-
-def tf_load_parquet(x) -> tf.Tensor:
-    x = tf.py_function(load_parquet, [x], tf.float64)
+def open_npy(x):
+    x = tf.io.read_file(x)
+    x = tf.io.decode_raw(x, tf.float64)
+    x = tf.reshape(x, (9996,))
     return x
 
 
@@ -52,7 +39,6 @@ def create_dataset(
     shuffle_size: int = 1000,
     repeat: bool = False,
     cache: Union[bool, str] = False,
-    transform_func=None,
 ) -> tf.data.Dataset:
     dataset = tf.data.Dataset.from_tensor_slices((({"filepath": x_data["filepath"], "patient": x_data["patient"]}), y_data))
 
@@ -60,15 +46,9 @@ def create_dataset(
         dataset_choices = []
         for i in range(2):
             dt = dataset.filter(lambda x, y: tf.equal(y, i)).map(
-                lambda x, y: (tf_load_parquet(x["filepath"]), y),
+                lambda x, y: (open_npy(x["filepath"]), y),
                 num_parallel_calls=tf.data.AUTOTUNE,
             )
-
-            if transform_func:
-                dt = dt.map(
-                    transform_func,
-                    num_parallel_calls=tf.data.AUTOTUNE,
-                )
 
             if cache:
                 if type(cache) is str:
@@ -86,13 +66,8 @@ def create_dataset(
         dataset = tf.data.Dataset.sample_from_datasets(dataset_choices, [0.5, 0.5])
     else:
         dataset = dataset.map(
-            lambda x, y: (tf_load_parquet(x["filepath"]), y), num_parallel_calls=tf.data.AUTOTUNE
+            lambda x, y: (open_npy(x["filepath"]), y), num_parallel_calls=tf.data.AUTOTUNE
         )
-        if transform_func:
-            dataset = dataset.map(
-                transform_func,
-                num_parallel_calls=tf.data.AUTOTUNE,
-            )
 
         if cache:
             if type(cache) is str:
@@ -132,39 +107,6 @@ def train_model(
     batch_size=BATCH_SIZE,
 ) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
     print("Fitting minirocket")
-    pos_samples = X_train.iloc[np.where(y_train == 1)]
-    pos_samples = pos_samples.sample(np.min([100, pos_samples.shape[0]]))
-
-    neg_samples = X_train.iloc[np.where(y_train == 0)]
-    neg_samples = neg_samples.sample(np.min([100, neg_samples.shape[0]]))
-
-    pos_samples = np.array([load_parquet(i) for i in pos_samples["filepath"]])
-    neg_samples = np.array([load_parquet(i) for i in neg_samples["filepath"]])
-
-    sampled_data = np.vstack([pos_samples, neg_samples])
-
-    transformed_data, minirocket = train_rocket(
-        sampled_data, kernel_num=kernel_num, max_dilations=max_dilations
-    )
-
-    del sampled_data
-    # del transformed_data
-
-    def minirocket_transform(x):
-        x = x.numpy()
-        x_shape = x.shape
-        if len(x_shape) == 2:
-            x = np.reshape(x, (1, x.shape[0], x.shape[1]))
-        transformed_x = minirocket.transform(x)
-
-        if len(x_shape) == 2:
-            transformed_x = transformed_x.values.flatten()
-
-        return transformed_x
-
-    def tf_minirocket_transform(x, y):
-        x = tf.py_function(minirocket_transform, [x], tf.float64)
-        return x, y
 
     train_cache_file = "/tmp/train.cache"
     validation_cache_file = "/tmp/validation.cache"
@@ -185,10 +127,7 @@ def train_model(
             repeat=True,
             oversampling=True,
             cache=True,
-            transform_func=tf_minirocket_transform,
         )
-        # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
-        # .prefetch(tf.data.AUTOTUNE)
     )
 
     validation_dataset = (
@@ -200,10 +139,7 @@ def train_model(
             shuffle=False,
             repeat=False,
             cache=True,
-            transform_func=tf_minirocket_transform,
         )
-        # .map(tf_minirocket_transform, num_parallel_calls=tf.data.AUTOTUNE)
-        # .prefetch(tf.data.AUTOTUNE)
     )
 
     lr_model = train_classifier(
@@ -217,13 +153,7 @@ def train_model(
     return lr_model, minirocket
 
 
-def train_general_model(data_path, save_path):
-    train_labels = pd.read_csv(os.path.join(data_path, "train_labels.csv"))
-    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
-    train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
-    train_labels["filepath"] = train_labels["filepath"].map(
-        lambda x: os.path.join(data_path, x)
-    )
+def train_general_model(data_path, save_path, train_labels):
     patient_num = train_labels["patient"].nunique()
     patients = train_labels["patient"].unique().tolist()
     print(f"#Patients: {patient_num}")
@@ -232,8 +162,6 @@ def train_general_model(data_path, save_path):
         lambda x: patients.index(x)
     )
 
-    # SAMPLING DATA FOR DEMO
-    # sampled_data = []
     X_train = []
     X_validation = []
     y_train = []
@@ -294,28 +222,8 @@ def train_general_model(data_path, save_path):
         pickle.dump(minirocket, f)
 
 
-def train_patient_specific(data_path, save_path):
-    train_labels = pd.read_csv(os.path.join(data_path, "train_labels.csv"))
-    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
-    train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
-    train_labels["filepath"] = train_labels["filepath"].map(
-        lambda x: os.path.join(data_path, x)
-    )
-    # SAMPLING DATA FOR DEMO
-    sampled_data = []
+def train_patient_specific(data_path, save_path, train_labels):
     for patient, group in train_labels.groupby("patient"):
-        pos_samples = group[group["label"] == 1]
-
-        neg_samples = group[group["label"] == 0]
-        neg_samples = neg_samples.sample(
-            int(neg_samples.shape[0] / 2), random_state=SEED
-        )
-
-        sampled_data.extend([pos_samples, neg_samples])
-
-    sampled_data = pd.concat(sampled_data)
-
-    for patient, group in sampled_data.groupby("patient"):
         train_sessions = []
         val_sessions = []
 
@@ -374,6 +282,12 @@ if __name__ == "__main__":
         "--data-path", type=str, default="/dataset/train/", required=False
     )
     arg_parser.add_argument(
+        "--preprocessed-path", type=str, default="/dataset/preprocessed/", required=False
+    )
+    arg_parser.add_argument(
+        "--train_label", type=str, default="/dataset/train_labels", required=False
+    )
+    arg_parser.add_argument(
         "--save-path", type=str, default="/trained_model", required=False
     )
     arg_parser.add_argument(
@@ -387,13 +301,22 @@ if __name__ == "__main__":
 
     data_path = Path(args.data_path)
     save_path = Path(args.save_path)
+    preprocessed_path = Path(args.preprocessed_path)
     training_mode = args.training_mode
 
     print(
-        f"GPU available:   {tf.test.is_gpu_available()}"
+        f"GPU available: {tf.test.is_gpu_available()}"
+    )
+
+    train_labels = pd.read_csv(args.train_label)
+    train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
+    train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
+
+    train_labels["filepath"] = train_labels["filepath"].map(
+        lambda x: os.path.join(preprocessed_path, x.split("/")[-1])
     )
 
     if training_mode == "general":
-        train_general_model(data_path, save_path)
+        train_general_model(data_path, save_path, train_labels)
     else:
-        train_patient_specific(data_path, save_path)
+        train_patient_specific(data_path, save_path, train_labels)

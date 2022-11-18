@@ -22,7 +22,6 @@ def preprocess(params) -> str:
         minirocket = None
     elif len(params) == 3:
         file, save_path, minirocket = params
-        save_path = None
 
     x = pd.read_parquet(file, engine="pyarrow")
     x = x.fillna(0)
@@ -86,6 +85,10 @@ if __name__ == "__main__":
         "--data-path", type=str, default="/dataset/train/", required=False
     )
 
+    arg_parser.add_argument(
+        "--data-label", type=str, default="/dataset/train/train_labels.csv", required=False
+    )
+
     arg_parser.add_argument("--save-path", type=str, required=True)
 
     arg_parser.add_argument(
@@ -94,7 +97,7 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    train_labels = pd.read_csv(os.path.join(args.data_path, "train_labels.csv"))
+    train_labels = pd.read_csv(args.data_label)
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(args.data_path, x)
     )

@@ -24,15 +24,6 @@ tf.random.set_seed(SEED)
 np.random.seed(SEED)
 
 
-def train_rocket(
-    x, kernel_num: int = 10000, max_dilations: int = 32
-) -> (np.ndarray, MiniRocketMultivariate):
-    rocket = MiniRocketMultivariate(kernel_num, max_dilations_per_kernel=max_dilations, random_state=SEED)
-    X_train_transform = rocket.fit_transform(x)
-
-    return X_train_transform, rocket
-
-
 def build_logistic_regression_model(
     dims: int, class_num: int = 2
 ) -> tf.keras.models.Model:
