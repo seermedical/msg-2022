@@ -25,7 +25,7 @@ class Classifier:
         self.model = self._build_model()
 
     def _build_model(self):
-        inputs = Input(input_shape=self.input_shape)
+        inputs = Input(shape=self.input_shape)
         inception = Inception(
             use_spatial_dropout=True,
             spatial_dropout_rate=0.1,
@@ -34,7 +34,7 @@ class Classifier:
             depth=8,
             use_residual=True,
             use_bottleneck=True,
-        )
+        ).create_model(inputs)
         x = Dense(1, "sigmoid")(inception)
         model = Model(inputs, x)
         return model

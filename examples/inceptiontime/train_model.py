@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 import tensorflow as tf
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 from classifier import Classifier
-
+from mixup import mix_up
 BATCH_SIZE = 64
 SEED = 42
 np.random.seed(SEED)
@@ -21,7 +21,8 @@ INPUT_DIMS = [121, 129 * 9]
 def open_npy(x):
     x = tf.io.read_file(x)
     x = tf.io.decode_raw(x, tf.float64)
-    x = tf.reshape(x, (INPUT_DIMS,))
+    x = tf.reshape(x, INPUT_DIMS)
+    x = tf.math.log(tf.square(x + 1e-7))
     return x
 
 
@@ -111,7 +112,7 @@ def train_model(
     for f in glob.glob(validation_cache_file + "*"):
         os.remove(f)
 
-    train_dataset = create_dataset(
+    train_ds1 = create_dataset(
         X_train,
         y_train,
         batch_size=batch_size,
@@ -123,6 +124,20 @@ def train_model(
         cache=True,
     )
 
+    train_ds2 = create_dataset(
+        X_train,
+        y_train,
+        batch_size=batch_size,
+        drop_remainder=True,
+        shuffle=True,
+        shuffle_size=100,
+        repeat=True,
+        oversampling=False,
+        cache=True,
+    )
+
+    train_dataset = mix_up(train_ds1, train_ds2)
+
     validation_dataset = create_dataset(
         X_validation,
         y_validation,
@@ -133,7 +148,7 @@ def train_model(
         cache=True,
     )
 
-    classifier = Classifier(input_shape=(60, 64))
+    classifier = Classifier(input_shape=INPUT_DIMS)
     classifier.train(
         train_dataset,
         validation_dataset,
@@ -231,7 +246,6 @@ if __name__ == "__main__":
     data_path = args.data_path
     save_path = args.save_path
     preprocessed_path = args.preprocessed_path
-    training_mode = args.training_mode
 
     print(f"GPU available: {tf.test.is_gpu_available()}")
 
