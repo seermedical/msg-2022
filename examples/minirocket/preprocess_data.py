@@ -1,7 +1,6 @@
 import os
 import pickle
 from argparse import ArgumentParser
-from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy.signal
@@ -10,6 +9,20 @@ from sktime.transformations.panel.rocket import MiniRocketMultivariate
 
 
 SEED = 42
+
+
+def transform_data(file):
+    x = pd.read_parquet(file, engine="pyarrow")
+    x = x.fillna(0)
+    x = np.transpose(x.values.tolist())
+    f, t, Zxx = scipy.signal.stft(
+        x, fs=128, window="hann", nperseg=128 * 10, scaling="psd", return_onesided=False
+    )
+    x = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
+
+    x = x.real.astype(np.float64)
+
+    return x
 
 
 def preprocess(params) -> str:
@@ -23,13 +36,7 @@ def preprocess(params) -> str:
     elif len(params) == 3:
         file, save_path, minirocket = params
 
-    x = pd.read_parquet(file, engine="pyarrow")
-    x = x.fillna(0)
-    x = np.transpose(x.values.tolist())
-    f, t, Zxx = scipy.signal.stft(x, fs=128, window="hann", nperseg=64 * 10)
-    x = np.reshape(Zxx, (Zxx.shape[0] * Zxx.shape[1], Zxx.shape[2]))
-
-    x = x.real.astype(np.float64)
+    x = transform_data(file)
 
     if minirocket is not None:
         x = np.expand_dims(x, axis=0)
@@ -67,7 +74,7 @@ def train_rocket(
 def build_minirocket(sampled_files, save_path):
     preprocessed_data = p_map(preprocess, sampled_files)
 
-    minirocket = MiniRocketMultivariate(num_features=10000, max_dilations_per_kernel=32)
+    minirocket = MiniRocketMultivariate(num_features=5000, max_dilations_per_kernel=32)
     minirocket.fit(np.array(preprocessed_data))
 
     if not os.path.exists(save_path):
@@ -86,7 +93,10 @@ if __name__ == "__main__":
     )
 
     arg_parser.add_argument(
-        "--data-label", type=str, default="/dataset/train/train_labels.csv", required=False
+        "--train-label",
+        type=str,
+        default="/dataset/train/train_labels.csv",
+        required=False,
     )
 
     arg_parser.add_argument("--save-path", type=str, required=True)

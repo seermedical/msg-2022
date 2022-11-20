@@ -7,7 +7,7 @@ import numpy as np
 from argparse import ArgumentParser
 import tensorflow as tf
 from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
-from classifier import train_classifier
+from classifier import Classifier
 
 BATCH_SIZE = 64
 SEED = 42
@@ -133,18 +133,18 @@ def train_model(
         cache=True,
     )
 
-    lr_model = train_classifier(
-        class_num=2,
-        dims=INPUT_DIMS,
-        train_data=train_dataset,
-        train_steps=2 * int(X_train.shape[0] / batch_size),
-        validation_data=validation_dataset,
-        epochs=epochs,
+    classifier = Classifier(input_shape=(60, 64))
+    classifier.train(
+        train_dataset,
+        validation_dataset,
+        train_steps=int(X_train.shape[0] / batch_size),
+        epochs=300,
     )
-    return lr_model
+
+    return classifier
 
 
-def train_general_model(data_path, save_path, train_labels):
+def train_general_model(data_path: str, save_path: str, train_labels: pd.DataFrame):
     patient_num = train_labels["patient"].nunique()
     patients = train_labels["patient"].unique().tolist()
     print(f"#Patients: {patient_num}")
@@ -195,7 +195,7 @@ def train_general_model(data_path, save_path, train_labels):
 
     ###
     print("Training model")
-    lr_model = train_model(
+    classifier = train_model(
         X_train,
         y_train,
         X_validation,
@@ -205,58 +205,7 @@ def train_general_model(data_path, save_path, train_labels):
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    lr_model.save(save_path)
-
-
-def train_patient_specific(data_path, save_path, train_labels):
-    for patient, group in train_labels.groupby("patient"):
-        train_sessions = []
-        val_sessions = []
-
-        preictal_sessions = group[group["label"] == 1]["session"].unique()
-        ictal_sessions = list(
-            set(group[group["label"] == 0]["session"].unique()) - set(preictal_sessions)
-        )
-
-        idx = int(len(preictal_sessions) * 0.8)
-        train_sessions.extend(preictal_sessions[:idx])
-        val_sessions.extend(preictal_sessions[idx:])
-
-        idx = int(len(ictal_sessions) * 0.8)
-        train_sessions.extend(ictal_sessions[:idx])
-        val_sessions.extend(ictal_sessions[idx:])
-
-        train_sessions = group[group["session"].isin(train_sessions)]
-        val_sessions = group[group["session"].isin(val_sessions)]
-
-        X_train = train_sessions[["filepath", "patient"]]
-        X_validation = val_sessions[["filepath", "patient"]]
-        y_train = train_sessions["label"]
-        y_validation = val_sessions["label"]
-
-        print("# samples in each class in the train set")
-        print(np.unique(y_train, return_counts=True))
-
-        # Count samples in each class
-        print("# samples in each class in the CV set")
-        print(np.unique(y_validation, return_counts=True))
-
-        batch_size = np.min([BATCH_SIZE, y_train[y_train == 1].shape[0]])
-        ###
-        print("Training model")
-        lr_model = train_model(
-            X_train,
-            y_train,
-            X_validation,
-            y_validation,
-            epochs=300,
-            batch_size=batch_size,
-        )
-        patient_model_save_path = os.path.join(save_path, str(patient))
-        if not os.path.exists(patient_model_save_path):
-            os.makedirs(patient_model_save_path)
-
-        lr_model.save(patient_model_save_path)
+    classifier.save(save_path, weights=True)
 
 
 if __name__ == "__main__":
@@ -276,18 +225,12 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--save-path", type=str, default="/trained_model", required=False
     )
-    arg_parser.add_argument(
-        "--training-mode",
-        type=str,
-        default="general",
-        required=False,
-        choices=["general", "patient-specific"],
-    )
+
     args = arg_parser.parse_args()
 
-    data_path = Path(args.data_path)
-    save_path = Path(args.save_path)
-    preprocessed_path = Path(args.preprocessed_path)
+    data_path = args.data_path
+    save_path = args.save_path
+    preprocessed_path = args.preprocessed_path
     training_mode = args.training_mode
 
     print(f"GPU available: {tf.test.is_gpu_available()}")
@@ -304,7 +247,4 @@ if __name__ == "__main__":
         )
     )
 
-    if training_mode == "general":
-        train_general_model(data_path, save_path, train_labels)
-    else:
-        train_patient_specific(data_path, save_path, train_labels)
+    train_general_model(data_path, save_path, train_labels)

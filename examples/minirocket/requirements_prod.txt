@@ -13,3 +13,4 @@ protobuf==3.19.0
 scipy==1.9.0
 scikit-learn==1.1.2
 sktime==0.8.1
+p_tqdm==1.4.0
