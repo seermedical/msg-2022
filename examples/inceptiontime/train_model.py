@@ -15,7 +15,7 @@ np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
 TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
-INPUT_DIMS = 4996
+INPUT_DIMS = [121, 129 * 9]
 
 
 def open_npy(x):

@@ -14,9 +14,16 @@ def transform_data(file):
     x = x.fillna(0)
     x = np.transpose(x.values.tolist())
     f, t, Zxx = scipy.signal.stft(
-        x, fs=128, window="hann", nperseg=128 * 10, scaling="psd", return_onesided=False
+        x,
+        fs=128,
+        window="hann",
+        nperseg=128 * 10,
+        scaling="psd",
+        return_onesided=True,
     )
-    x = np.swapaxes(Zxx, -1, 1)
+    Zxx = Zxx[:, [i for i in range(0, f.shape[0] + 1, 5)]]
+    x = np.swapaxes(Zxx, 0, 1)
+    x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2]))
     x = x.real.astype(np.float64)
 
     return x
@@ -59,7 +66,7 @@ if __name__ == "__main__":
 
     args = arg_parser.parse_args()
 
-    train_labels = pd.read_csv(args.data_label)
+    train_labels = pd.read_csv(args.train_label)
     train_labels["filepath"] = train_labels["filepath"].map(
         lambda x: os.path.join(args.data_path, x)
     )
