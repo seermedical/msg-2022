@@ -6,23 +6,22 @@ import pandas as pd
 import numpy as np
 from argparse import ArgumentParser
 import tensorflow as tf
-from sktime.transformations.panel.rocket import MiniRocket, MiniRocketMultivariate
 from classifier import Classifier
-from mixup import mix_up
-BATCH_SIZE = 64
+from mixup import create_mixup_ds
+BATCH_SIZE = 256
 SEED = 42
 np.random.seed(SEED)
 tf.random.set_seed(SEED)
 
-TRAIN_DATA_DIR = Path("/dataset/train/")  # Location of input test data
+
 INPUT_DIMS = [121, 129 * 9]
 
 
-def open_npy(x):
+def open_data_file(x):
     x = tf.io.read_file(x)
     x = tf.io.decode_raw(x, tf.float64)
     x = tf.reshape(x, INPUT_DIMS)
-    x = tf.math.log(tf.square(x + 1e-7))
+    #x = tf.math.log(tf.square(x) + 1e-7)
     return x
 
 
@@ -38,14 +37,14 @@ def create_dataset(
     cache: Union[bool, str] = False,
 ) -> tf.data.Dataset:
     dataset = tf.data.Dataset.from_tensor_slices(
-        (({"filepath": x_data["filepath"], "patient": x_data["patient"]}), y_data)
+        (x_data["filepath"].values.tolist(), y_data)
     )
 
     if oversampling:
         dataset_choices = []
         for i in range(2):
             dt = dataset.filter(lambda x, y: tf.equal(y, i)).map(
-                lambda x, y: (open_npy(x["filepath"]), y),
+                lambda x, y: (open_data_file(x), y),
                 num_parallel_calls=tf.data.AUTOTUNE,
             )
 
@@ -63,9 +62,12 @@ def create_dataset(
             dataset_choices.append(dt)
 
         dataset = tf.data.Dataset.sample_from_datasets(dataset_choices, [0.5, 0.5])
+        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder).prefetch(
+                        tf.data.AUTOTUNE
+    	          )
     else:
         dataset = dataset.map(
-            lambda x, y: (open_npy(x["filepath"]), y),
+            lambda x, y: (open_data_file(x), y),
             num_parallel_calls=tf.data.AUTOTUNE,
         )
 
@@ -74,16 +76,18 @@ def create_dataset(
                 dataset = dataset.cache(cache)
             else:
                 dataset = dataset.cache()
-
+                
+        dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
         if shuffle:
             dataset = dataset.shuffle(shuffle_size)
 
         if repeat:
             dataset = dataset.repeat()
+            
+        dataset = dataset.prefetch(
+                tf.data.AUTOTUNE
+        )
 
-    dataset = dataset.batch(batch_size, drop_remainder=drop_remainder).prefetch(
-        tf.data.AUTOTUNE
-    )
 
     data_options = tf.data.Options()
     data_options.experimental_distribute.auto_shard_policy = (
@@ -101,8 +105,7 @@ def train_model(
     y_validation: Union[pd.Series, np.ndarray],
     epochs: int = 100,
     batch_size=BATCH_SIZE,
-) -> (tf.keras.models.Model, Union[MiniRocket, MiniRocketMultivariate]):
-    print("Fitting minirocket")
+):
 
     train_cache_file = "/tmp/train.cache"
     validation_cache_file = "/tmp/validation.cache"
@@ -112,7 +115,7 @@ def train_model(
     for f in glob.glob(validation_cache_file + "*"):
         os.remove(f)
 
-    train_ds1 = create_dataset(
+    train_dataset = create_dataset(
         X_train,
         y_train,
         batch_size=batch_size,
@@ -121,7 +124,7 @@ def train_model(
         shuffle_size=100,
         repeat=True,
         oversampling=True,
-        cache=True,
+        cache=False,
     )
 
     train_ds2 = create_dataset(
@@ -133,10 +136,10 @@ def train_model(
         shuffle_size=100,
         repeat=True,
         oversampling=False,
-        cache=True,
+        cache=False,
     )
 
-    train_dataset = mix_up(train_ds1, train_ds2)
+    #train_dataset = create_mixup_ds(train_ds1, train_ds2)
 
     validation_dataset = create_dataset(
         X_validation,
@@ -152,8 +155,8 @@ def train_model(
     classifier.train(
         train_dataset,
         validation_dataset,
-        train_steps=int(X_train.shape[0] / batch_size),
-        epochs=300,
+        train_steps=2 * int(X_train.shape[0] / batch_size),
+        epochs=epochs,
     )
 
     return classifier
@@ -220,7 +223,7 @@ def train_general_model(data_path: str, save_path: str, train_labels: pd.DataFra
     if not os.path.exists(save_path):
         os.makedirs(save_path)
 
-    classifier.save(save_path, weights=True)
+    classifier.save(save_path, save_weights=False)
 
 
 if __name__ == "__main__":
@@ -231,7 +234,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         "--preprocessed-path",
         type=str,
-        default="/dataset/preprocessed/",
+        default=None,
         required=False,
     )
     arg_parser.add_argument(
@@ -252,13 +255,14 @@ if __name__ == "__main__":
     train_labels = pd.read_csv(args.train_label)
     train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
     train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
-
-    train_labels["filepath"] = train_labels["filepath"].map(
-        lambda x: os.path.join(
-            preprocessed_path,
-            "/".join(x.split("/")[:-1]),
-            x.split("/")[-1].split(".")[0] + ".bin",
+    
+    if preprocessed_path is not None:
+        train_labels["filepath"] = train_labels["filepath"].map(
+            lambda x: os.path.join(
+                preprocessed_path,
+                "/".join(x.split("/")[:-1]),
+                x.split("/")[-1].split(".")[0] + ".bin",
+            )
         )
-    )
 
     train_general_model(data_path, save_path, train_labels)

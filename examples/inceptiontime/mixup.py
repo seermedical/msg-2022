@@ -38,11 +38,14 @@ def _mix_up(
 
     return images, labels
 
-@tf.function
+
 def mix_up(ds_one, ds_two, alpha=0.2):
     # Unpack two datasets
+    ds_one_iter = iter(ds_one)
+    ds_two_iter = iter(ds_two)
     images_one, labels_one = ds_one
     images_two, labels_two = ds_two
+    
     rand = tf.random.uniform((1,), 0, 1)[0]
     if tf.greater(rand, tf.constant(0.5)):
         return _mix_up(
@@ -59,6 +62,6 @@ def create_mixup_ds(train_ds_one, train_ds_two,):
         lambda ds_one, ds_two: mix_up(
             ds_one, ds_two, alpha=0.2
         ),
-        num_parallel_calls=tf.data.experimental.AUTOTUNE,
+        num_parallel_calls=tf.data.AUTOTUNE,
     )
     return train_data
