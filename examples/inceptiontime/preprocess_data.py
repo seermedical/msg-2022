@@ -22,7 +22,10 @@ def transform_data(file):
         return_onesided=True,
     )
     Zxx = Zxx[:, [i for i in range(0, f.shape[0] + 1, 5)]]
-    x = np.swapaxes(Zxx, 0, 1)
+
+    x = np.swapaxes(Zxx, 1, 2)
+    x = np.swapaxes(x, 0, 1)
+
     x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2]))
     x = x.real.astype(np.float64)
 
