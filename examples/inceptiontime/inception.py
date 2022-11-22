@@ -14,8 +14,10 @@ from tensorflow.keras.layers import (
     AveragePooling1D,
     SpatialDropout1D,
     Flatten,
-    MaxPooling1D
+    MaxPooling1D,
+    LeakyReLU
 )
+
 from tensorflow.keras.regularizers import l2
 
 
@@ -82,7 +84,7 @@ class Inception:
             input_inception = Conv1D(
                 filters=bottleneck_size,
                 kernel_size=1,
-                padding="same",
+                padding="causal",
                 activation=activation,
                 use_bias=False,
                 kernel_regularizer=l2(self.l2_weight),
@@ -100,7 +102,7 @@ class Inception:
                     filters=nb_filters,
                     kernel_size=kernel_size_s[i],
                     strides=stride,
-                    padding="same",
+                    padding="causal",
                     activation=activation,
                     use_bias=False,
                     kernel_regularizer=l2(self.l2_weight),
@@ -114,7 +116,7 @@ class Inception:
         conv_6 = Conv1D(
             filters=nb_filters,
             kernel_size=1,
-            padding="same",
+            padding="causal",
             activation=activation,
             use_bias=False,
             kernel_regularizer=l2(self.l2_weight),
@@ -124,19 +126,19 @@ class Inception:
 
         x = Concatenate(axis=2)(conv_list)
         x = BatchNormalization()(x)
-        x = Activation(activation="relu")(x)
+        x = LeakyReLU()(x)
         return x
 
     def _shortcut_layer(self, input_tensor, out_tensor):
         shortcut_y = Conv1D(
             filters=int(out_tensor.shape[-1]),
             kernel_size=1,
-            padding="same",
+            padding="causal",
             use_bias=False,
             kernel_regularizer=l2(self.l2_weight),
         )(input_tensor)
         shortcut_y = BatchNormalization()(shortcut_y)
 
         x = Add()([shortcut_y, out_tensor])
-        x = Activation("relu")(x)
+        x = LeakyReLU()(x)
         return x
