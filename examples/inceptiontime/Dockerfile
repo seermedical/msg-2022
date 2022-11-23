@@ -14,7 +14,7 @@ RUN pip install -r requirements_prod.txt
 WORKDIR /app
 
 # COPY WHATEVER OTHER SCRIPTS YOU MAY NEED
-COPY trained_model_general /trained_model
+COPY trained_model /trained_model
 COPY submission.py train_model.py classifier.py preprocess_data.py inception.py ./
 # SPECIFY THE ENTRYPOINT SCRIPT
 CMD ["python", "-u", "submission.py"]
