@@ -1,8 +1,6 @@
 This example uses InceptionTime. Please refer to the original InceptionTime paper: [KDD 2020](https://link.springer.com/article/10.1007/s10618-020-00710-y) / [arXiv:2012.08791](https://arxiv.org/pdf/1909.04939.pdf) (preprint).
 
-InceptionTime has also been used to detect interictal epileptiform discharges from epilepsy patients. [Paper](https://www.worldscientific.com/doi/10.1142/S0129065723500016.)
-
-This also contains example for building data pipeline with tf.Data apis (`create_dataset` function in `train_model.py`).
+InceptionTime has also been used to detect interictal epileptiform discharges from epilepsy patients, [Automated Interictal Epileptiform Discharge Detection From Scalp EEG Using Scalable Time-series Classification Approaches](https://www.worldscientific.com/doi/10.1142/S0129065723500016).
 
 The example contains the following files:
 - `inception.py`: this file contains the modified version of InceptionTime.
