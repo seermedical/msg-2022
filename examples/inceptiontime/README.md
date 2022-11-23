@@ -13,6 +13,6 @@ Once the model is trained, you can follow the following steps to build and test 
 - Build docker image for submission: `docker build -f Dockerfile -t msg-submission`
 - Test submission docker: 
 ```sh
-docker run --gpus all cpus 4 -v `pwd`/../../../../data/msg:/dataset -v `pwd`/submission:/submission msg-docker-submission`
+docker run --gpus all cpus 4 -v `pwd`/../../../../data/msg:/dataset -v `pwd`/submission:/submission msg-submission`
 ```
 This limits `cpus` to 4 to match the specifications of the provided server.
