@@ -1,12 +1,18 @@
-This example uses Minirocket. The logistic regression is built with Tensorflow. This contains example for building data pipeline with tf.Data apis (`create_dataset` function in `train_model.py`).
+This example uses InceptionTime. Links to paper: [KDD 2020](https://link.springer.com/article/10.1007/s10618-020-00710-y) / [arXiv:2012.08791](https://arxiv.org/pdf/1909.04939.pdf) (preprint)
 
-Links to paper: [KDD 2021](https://dl.acm.org/doi/abs/10.1145/3447548.3467231) / [arXiv:2012.08791](https://arxiv.org/abs/2012.08791) (preprint)
+This also contains example for building data pipeline with tf.Data apis (`create_dataset` function in `train_model.py`).
 
-Training can be done without Docker. However, if you want to create an isolated environment with docker, you can refer to the `Dockerfile_train` for reference.
-Here are example command lines to run docker files locally:
-- Build docker image for training: `docker build -f Dockerfile_train -t msg-docker-train`
-- Train with GPU: `docker run --gpus all -v $path_to_dataset:/dataset -v  $model_output_path:/trained_model msg-docker-train`
-- Build docker image for submission: `docker build -f Dockerfile -t msg-docker-submission`
-- Test submission docker: `docker run --gpus all -v `pwd`/../../../../data/msg:/dataset -v `pwd`/submission:/submission msg-docker-submission`
+The example contains the following files:
+- `inception.py`: this file contains the modified version of InceptionTime.
+- `classifier.py`: this file contains the code for the classifier.
+- `train_model.py`: this is the main file which create the dataset and train the model.
+- `preprocess_data`: this is the code for preprocessing the data.
+- `Dockerfile`: the script for building docker image for submission.
 
-This example uses GPU (note `--gpus all` flag).
+Once the model is trained, you can follow the following steps to build and test your Docker submission:
+- Build docker image for submission: `docker build -f Dockerfile -t msg-submission`
+- Test submission docker: 
+```sh
+docker run --gpus all cpus 4 -v `pwd`/../../../../data/msg:/dataset -v `pwd`/submission:/submission msg-docker-submission`
+```
+This limits `cpus` to 4 to match the specifications of the provided server.

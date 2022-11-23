@@ -7,7 +7,7 @@ import numpy as np
 from argparse import ArgumentParser
 import tensorflow as tf
 from classifier import Classifier
-from mixup import create_mixup_ds
+
 BATCH_SIZE = 256
 SEED = 42
 np.random.seed(SEED)
@@ -21,7 +21,7 @@ def open_data_file(x):
     x = tf.io.read_file(x)
     x = tf.io.decode_raw(x, tf.float64)
     x = tf.reshape(x, INPUT_DIMS)
-    #x = tf.math.log(tf.square(x) + 1e-7)
+    # x = tf.math.log(tf.square(x) + 1e-7)
     return x
 
 
@@ -63,8 +63,8 @@ def create_dataset(
 
         dataset = tf.data.Dataset.sample_from_datasets(dataset_choices, [0.5, 0.5])
         dataset = dataset.batch(batch_size, drop_remainder=drop_remainder).prefetch(
-                        tf.data.AUTOTUNE
-    	          )
+            tf.data.AUTOTUNE
+        )
     else:
         dataset = dataset.map(
             lambda x, y: (open_data_file(x), y),
@@ -76,18 +76,15 @@ def create_dataset(
                 dataset = dataset.cache(cache)
             else:
                 dataset = dataset.cache()
-                
+
         dataset = dataset.batch(batch_size, drop_remainder=drop_remainder)
         if shuffle:
             dataset = dataset.shuffle(shuffle_size)
 
         if repeat:
             dataset = dataset.repeat()
-            
-        dataset = dataset.prefetch(
-                tf.data.AUTOTUNE
-        )
 
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
     data_options = tf.data.Options()
     data_options.experimental_distribute.auto_shard_policy = (
@@ -126,20 +123,6 @@ def train_model(
         oversampling=True,
         cache=False,
     )
-
-    train_ds2 = create_dataset(
-        X_train,
-        y_train,
-        batch_size=batch_size,
-        drop_remainder=True,
-        shuffle=True,
-        shuffle_size=100,
-        repeat=True,
-        oversampling=False,
-        cache=False,
-    )
-
-    #train_dataset = create_mixup_ds(train_ds1, train_ds2)
 
     validation_dataset = create_dataset(
         X_validation,
@@ -255,7 +238,7 @@ if __name__ == "__main__":
     train_labels = pd.read_csv(args.train_label)
     train_labels["patient"] = train_labels["filepath"].map(lambda x: x.split("/")[0])
     train_labels["session"] = train_labels["filepath"].map(lambda x: x.split("/")[1])
-    
+
     if preprocessed_path is not None:
         train_labels["filepath"] = train_labels["filepath"].map(
             lambda x: os.path.join(
