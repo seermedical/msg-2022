@@ -24,3 +24,7 @@
   1. [Setup Eval.ai CLI](submission/prepare.md)
   2. [Make Submision](submission/submit.md)
 
+
+## Examples
+
+- [Example submission code](../examples/inceptiontime) using an `InceptionTime` deep learning model.
