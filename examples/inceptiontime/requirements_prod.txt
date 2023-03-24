@@ -7,7 +7,7 @@ pandas==1.4.0
 pyarrow==9.0.0 # Needed to load parquet files in pandas
 pathos==0.2.9
 #fastparquet==0.8.3
-tensorflow-gpu==2.9.1
+tensorflow-gpu==2.12.0
 tensorflow_addons==0.17.1
 protobuf==3.19.0
 scipy==1.9.0
